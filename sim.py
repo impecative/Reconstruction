@@ -146,7 +146,7 @@ def pointInCamera2Image(point3D, sensor_width, sensor_height, focal_length, pixe
 
     # now apply transformation so everything is where it 'should be' in 3-space
     R = rotation_matrix
-    newcameracentre = cameracentre
+    newcameracentre = cameracentre   # don't need to transform this! 
     TL2 = transformpoint(TL, R, tvec)
     TR2 = transformpoint(TR, R, tvec)
     BR2 = transformpoint(BR, R, tvec)
@@ -192,15 +192,6 @@ def fixImgCoords(imgx, imgy, sensor_width, sensor_height):
 
     # relative to the origin, the point is at position:
     return imgcoordinate - origin
-
-
-
-
-
-
-
-
-
 
 
 def main():
