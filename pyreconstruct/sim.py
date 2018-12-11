@@ -42,7 +42,7 @@ def findPlane(A, B, C, *args):
         for coord in args:
             assert np.allclose(a*coord[0] + b*coord[1] + c*coord[2] -d, 0), "additional input point is not coplanar..."
 
-    return a,b,c,d
+    return a,b,c,d, normal
 
 def point2plane2point(a, b, c, d, point3D, cameracentre):
     '''Where does the line joining the 3D point and camera centre intersect the plane? 
@@ -77,7 +77,7 @@ def pointInCamera1Image(point3D, sensor_width, sensor_height, focal_length, pixe
     # Where they intersect is the image coordinates of the image. -> then we can check whether it is in frame...
 
     # pick 3 corners of the four to define plane.
-    a,b,c,d = findPlane(TL, TR, BR, BL)
+    a,b,c,d, _ = findPlane(TL, TR, BR, BL)
     intersection = point2plane2point(a,b,c,d,point3D, cameracentre)
 
     # can the point be seen? 
@@ -164,7 +164,7 @@ def pointInCamera2Image(point3D, sensor_width, sensor_height, focal_length, pixe
 
     # define the plane of these points
     # also find intersection of the line from 3Dpoint and the camera centre, and the plane
-    a,b,c,d= findPlane(TL2, TR2, BR2, BL2)
+    a,b,c,d, _ = findPlane(TL2, TR2, BR2, BL2)
     intersection = point2plane2point(a, b, c, d, point3D, cameracentre)
 
     # this intersection is in the transformed frame. Untransform and we can see if it exceeds the 

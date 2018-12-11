@@ -60,3 +60,202 @@ def unit(vec):
     """Return the unit vector of vector."""
     return vec/np.linalg.norm(vec)
     
+def linepoint2point(A,B,t):
+    '''Find the equation of the line from point A -> B. \n
+    Returns a point on the line P satisfies P = A + (B-A)*t for some t.'''
+    return A + (B-A)*t
+
+def findPlane(A, B, C, *args):
+    '''Given three points A, B, C find the equation of the plane they all lie upon.
+    Can input more points to verify if they are all coplanar. If testing the sensor 
+    plane, this is recommended.
+    \nReturns a,b,c of the normal=(a,b,c) and the scalar component np.dot(normal, A).'''
+    normal = np.cross((B-A), (C-A))
+    d = np.dot(normal, A)
+    a,b,c = normal
+
+    if args:
+        for coord in args:
+            assert np.allclose(a*coord[0] + b*coord[1] + c*coord[2] -d, 0), "additional input point is not coplanar..."
+
+    return a,b,c,d
+
+def point2plane2point(a, b, c, d, point3D, cameracentre):
+    '''Where does the line joining the 3D point and camera centre intersect the plane? 
+    Return the x,y,z position of this intercept. '''
+    n = np.array([a,b,c])
+    D = point3D
+    E = cameracentre
+
+    t = (d - np.linalg.multi_dot([n, D]))/np.linalg.multi_dot([n, (E-D)])
+
+    # point of intersection is 
+    x,y, z = D + (E-D)*t
+
+    return x,y,z
+
+def RotationMatrix(yaw, pitch, roll):
+    '''Form a rotation matrix to carry out specified yaw, pitch, roll rotation *in degrees*.'''
+    yaw, pitch, roll = np.radians(yaw), np.radians(pitch), np.radians(roll)
+
+    R_x = np.array([[1,0,0], [0, np.cos(roll), -np.sin(roll)], [0, np.sin(roll), np.cos(roll)]])
+    R_y = np.array([[np.cos(pitch), 0, np.sin(pitch)],[0,1,0], [-np.sin(pitch), 0, np.cos(pitch)]])
+    R_z = np.array([[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw),0], [0,0,1]])
+
+    R = np.linalg.multi_dot([R_z, R_y, R_x])
+
+    return R
+
+def transformpoint(point, rot_matrix, tvec):
+    '''Apply the transformations: rotation followed by translation to the point. '''
+    
+    newpoint = rot_matrix @ point
+    newpoint += tvec
+    return newpoint
+
+def untransformpoint(transformedPoint, rot_matrix, tvec):
+    '''Reverse the transformation of a point: translation followed by inverse of rotation...'''
+    tpoint = transformedPoint - tvec
+    point = np.linalg.inv(rot_matrix) @ tpoint
+
+    return point
+
+
+class Camera:
+    """Define Camera centre, focal lenght, sensor dimensions and pixel dimensions..."""
+    def __init__(self, cameracentre, focal_length, sensor_width, sensor_height, pixel_size):
+        self.centre        = cameracentre
+        self.focal_length  = focal_length
+        self.sensor_width  = sensor_width
+        self.sensor_height = sensor_height
+        self.pixel_size    = pixel_size
+    
+class Sim:
+    def __init__(self, points3D,  Cam1, Cam2, yaw, pitch, roll):
+        self.tvec = Cam2.centre - Cam1.centre
+        self.R = RotationMatrix(yaw, pitch, roll)
+        self.point = point3D
+
+    def pointInCamera1Image(self):
+        cameracentre = Cam1.centre
+        pixel_size   = Cam1.pixel_size
+        f = Cam1.focal_length
+        w = Cam1.sensor_width
+        h = Cam1.sensor_height
+        point3D = self.point
+
+        '''Can camera 1 (at the origin of the coordinate system) see the 3D point in space? \n
+        Return True/False and the x,y pixel coordinates of the image.'''
+        w, h =sensor_width, sensor_height
+        f = focal_length
+
+        TL = np.array([-w/2, h/2, f])   # top left of sensor
+        TR = np.array([w/2, h/2, f])    # top right of sensor
+        BR = np.array([w/2, -h/2, f])   # bottom right of sensor
+        BL = np.array([-w/2, -h/2, f])  # bottom left of sensor
+
+        # define limits on the sensor    (A point exceeding these dimensions cannot be seen)
+        xmin, ymin, _ = BL
+        xmax, ymax, _ = TR
+
+        # define the plane of the sensor and the line linking the 3D point and the camera centre.
+        # Where they intersect is the image coordinates of the image. -> then we can check whether it is in frame...
+
+        # pick 3 corners of the four to define plane.
+        a,b,c,d = findPlane(TL, TR, BR, BL)
+        intersection = point2plane2point(a,b,c,d,point3D, cameracentre)
+
+        # can the point be seen? 
+        x,y,z = intersection
+
+        # print(z, f)
+        assert np.allclose(z,f), "Intersection of image plane hasn't worked properly... point not at z=f"
+
+        seen = False
+        if (x >= xmin and x <= xmax) and (y >= ymin and y <= ymax):
+            seen = True
+        
+        # check if the point is in front of the CCD plane: 
+        if point3D[2] < f:    # if the point's z-position is less than the z-position of the CCD plane
+            seen = False      # then the point cannot be physically imaged by the camera.
+        
+        # return the pixel coordinates of the pixel... 
+        # NOTE: we are treating the origin as the CENTRE of the image, not the bottom left corner. 
+        x = x/pixel_size
+        y = y/pixel_size
+
+        return seen, x, y
+
+    def pointInCamear2Image(self):
+        cameracentre = Cam2.centre
+        pixel_size   = Cam2.pixel_size
+        f = Cam2.focal_length
+        w = Cam2.sensor_width
+        h = Cam2.sensor_height
+        point3D = self.point
+
+        # if the camera centre was at the origin and looking straight down the +ve z-direction
+        TL = np.array([-w/2, h/2, f])   # top left of sensor
+        TR = np.array([w/2, h/2, f])    # top right of sensor
+        BR = np.array([w/2, -h/2, f])   # bottom right of sensor
+        BL = np.array([-w/2, -h/2, f])  # bottom left of sensor
+        sensor_centre = np.mean([TL, TR, BR, BL], axis=0)
+
+        # define limits on the sensor
+        xmin, ymin, _ = BL
+        xmax, ymax, _ = TR
+
+        # now apply transformation so everything is where it 'should be' in 3-space
+        R = self.R
+        tvec = self.tvec
+        newcameracentre = cameracentre   # don't need to transform this! 
+        TL2 = transformpoint(TL, R, tvec)
+        TR2 = transformpoint(TR, R, tvec)
+        BR2 = transformpoint(BR, R, tvec)
+        BL2 = transformpoint(BL, R, tvec)
+        new_sensor_centre = transformpoint(sensor_centre, R, tvec)
+
+        # determine if point is in front or behind the camera
+        point2camera = point3D - newcameracentre
+        point2sensor = point3D - new_sensor_centre
+
+        if np.linalg.norm(point2sensor) <= np.linalg.norm(point2camera):
+            front = True
+        else:
+            front = False
+
+        # define the plane of these points
+        # also find intersection of the line from 3Dpoint and the camera centre, and the plane
+        a,b,c,d = findPlane(TL2, TR2, BR2, BL2)
+        intersection = point2plane2point(a, b, c, d, point3D, cameracentre)
+
+        # this intersection is in the transformed frame. Untransform and we can see if it exceeds the 
+        # sensor dimensions, and therefore whether the point can be seen on the CCD.
+
+
+        x,y,z = untransformpoint(intersection, R, tvec)
+        assert np.allclose(f,z), "Intersection of image plane hasn't worked properly... point not at z=f"
+
+        seen = False
+        if (x >= xmin and x <= xmax) and (y >= ymin and y <= ymax) and front:
+            seen = True
+        
+        # turn the coordinates into pixel coordinates
+        x = x/pixel_size
+        y = y/pixel_size
+
+        return seen, x, y
+
+
+    
+cameracentre = np.array([0,0,0])   # let camera 1 lie at the origin of the coordinate system (m)
+sensor_width, sensor_height = 23.5e-3, 15.6e-3     # sensor dimensions of first camera (m)
+focal_length = 50e-3   # focal length of camera 1 (m)
+pixel_size  = 3.9e-6   # linear dimension of a pixel (m)
+point3D = np.array([0,0,50])
+
+Cam1 = Camera(cameracentre, focal_length, sensor_width, sensor_height, pixel_size)
+
+Cam2 = Camera(np.array([0,0,100]), focal_length, sensor_width, sensor_height, pixel_size)
+
+sim = Sim(point3D, Cam1, Cam2, yaw=0, pitch=0, roll=0)
