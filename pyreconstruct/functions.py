@@ -3,6 +3,7 @@ import numpy as np
 import scipy as sp
 import random
 random.seed(10)  # this should remain constant for testing, remove for true random distribution
+import matplotlib.pyplot as plt
 
 def skew(V):
     '''Form a skew symmetric matrix from 3-vector V'''
@@ -231,6 +232,88 @@ def fixImgCoords(imgx, imgy, sensor_width, sensor_height):
     # relative to the origin, the point is at position:
     return imgcoordinate - origin
 
+def stereoImages(x1s, y1s, x2s, y2s, w1, w2, h1, h2):
+    '''Input: Arrays or lists of corresponding x1, y1, x2, y2 coordinates,
+              on the two images of Camera 1 and Camera 2 respectively.
+              CCD dimensions of Camera 1 (w1, h1) and Camera 2 (w2, h2)
+              \n IN UNITS OF PIXELS...'''
+    fig = plt.figure(2)
+    ax1 = plt.subplot(121)
+    plt.plot(x1s, y1s, "bx")
+    # plot the sensor on
+    plt.plot([0,w1], [0, 0], "r", alpha=0.3)
+    plt.plot([w1,w1], [0, h1], "r", alpha=0.3)
+    plt.plot([w1,0], [h1, h1], "r", alpha=0.3)
+    plt.plot([0, 0], [h1, 0], "r", alpha=0.3)
+
+    ax1.set_aspect("equal")
+    plt.xlabel("x-direction (pixels)")
+    plt.ylabel("y-direction (pixels)")
+    plt.title("Camera 1 Image")
+    
+    ax2 = plt.subplot(122, sharey=ax1)
+    plt.setp(ax2.get_yticklabels(), visible=False)
+    plt.plot(x2s, y2s, "bx")
+    
+    # plot the sensor on
+    plt.plot([0,w2], [0, 0], "r", alpha=0.3)
+    plt.plot([w2,w2], [0, h2], "r", alpha=0.3)
+    plt.plot([w2,0], [h2, h2], "r", alpha=0.3)
+    plt.plot([0, 0], [h2, 0], "r", alpha=0.3)
+
+    ax2.set_aspect("equal")
+    plt.title("Camera 2 Image")
+    plt.xlabel("x-direction (pixels)")
+
+    plt.suptitle("Points as Imaged by Two Stereo-Cameras")
+    # plt.show()
+
+def centroid(arr):
+    """For a set of coordinates, compute the centroid position."""
+    length = arr.shape[0]      # length of the array
+    sum_x  = np.sum(arr[:,0])
+    sum_y  = np.sum(arr[:,1])
+
+    return sum_x/length, sum_y/length
+
+def translation(arr):
+    """Produces a new set of points that has undergone a translation such that 
+    the centroid of the original set of points now lies at the origin."""
+    x_c, y_c = centroid(arr)
+    newpoints = np.array((arr[:,0]-x_c, arr[:,1]-y_c))
+    return newpoints.T
+   
+
+def avgDisplacement(arr):
+    """Finds the average displacement of a set of points (x_i, y_i)
+    from the origin."""
+    sum_squares = np.sum(arr**2, axis=1)
+    return np.mean(np.sqrt(sum_squares))    
+
+def scale(arr):
+    """Fixes the set of points (x_i, y_i) such that the average 
+    displacement from the origin is sqrt(2)."""
+    displacement = avgDisplacement(arr)
+    scale = np.sqrt(2)/displacement
+
+    newpoints = scale * arr
+    return newpoints
+
+def normalisation(arr):
+    """Given a set of points {x_i}, normalise them such that\n 
+    a) the centroid of the group is at the origin \n
+    b) the average displacement of the group is sqrt(2)\n
+    return: The new set of normalised points corresponding to 
+    original set of points."""
+
+    # 1) translate the points such that the centroid is at origin
+    points = translation(arr)
+    # 2) scale the points such that average displacement is sqrt(2)
+    newpoints = scale(points)
+
+    return newpoints
+
+
 class Camera:
     """Define Camera centre, focal lenght, sensor dimensions and pixel dimensions..."""
     def __init__(self, cameracentre, focal_length, sensor_width, sensor_height, pixel_size):
@@ -293,19 +376,39 @@ class Sim:
             y2s[i] = y2
 
         return x1s, y1s, x2s, y2s
-
-
     
-cameracentre = np.array([0,0,0])   # let camera 1 lie at the origin of the coordinate system (m)
-sensor_width, sensor_height = 23.5e-3, 15.6e-3     # sensor dimensions of first camera (m)
-focal_length = 50e-3   # focal length of camera 1 (m)
-pixel_size  = 3.9e-6   # linear dimension of a pixel (m)
-point3D = np.array([[0,0,50]])
+    def drawImages(self, x1s, y1s, x2s, y2s):
+        stereoImages(x1s, y1s, x2s, y2s, self.w1/self.p1, self.w2/self.p2, self.h1/self.p1, self.h2/self.p2)
+        plt.show()
 
-Cam1 = Camera(cameracentre, focal_length, sensor_width, sensor_height, pixel_size)
+def main(): 
+    cameracentre = np.array([0,0,0])   # let camera 1 lie at the origin of the coordinate system (m)
+    sensor_width, sensor_height = 23.5e-3, 15.6e-3     # sensor dimensions of first camera (m)
+    focal_length = 50e-3   # focal length of camera 1 (m)
+    pixel_size  = 3.9e-6   # linear dimension of a pixel (m)
+    point3D = np.array([[0,0,50]])
+    camera2centre = np.array([0,0,100])
 
-Cam2 = Camera(np.array([0,0,100]), focal_length, sensor_width, sensor_height, pixel_size)
+    """# user input camera parameters:
+    camcentre = input("Please Input Camera 2 Position (separated by commas): ")
+    camera2centre = np.array([0,0,0])
+    for i in range(len(camcentre.split(","))):
+        cam2centre[i] = camcentre.split(",")[i]
+    focal_length = float(input("Please input the focal lengths of the cameras (in metres): "))
+    sensor_width = float(input("Input the width of the CCD (in metres): "))
+    sensor_height= float(input("Input the height of the CCD (in metres): "))
+    pixel_size   = float(input("Input the linear dimension of each pixel (in metres): "))"""
 
-sim = Sim(200, Cam1, Cam2, yaw=0, pitch=180, roll=0)
+    Cam1 = Camera(cameracentre, focal_length, sensor_width, sensor_height, pixel_size)
 
-x1s, y1s, x2s, y2s = sim.synchImages()
+    Cam2 = Camera(camera2centre, focal_length, sensor_width, sensor_height, pixel_size)
+
+    sim = Sim(200, Cam1, Cam2, yaw=0, pitch=180, roll=0)
+
+    x1s, y1s, x2s, y2s = sim.synchImages()
+
+    sim.drawImages(x1s, y1s, x2s, y2s)
+    # plt.show()
+
+if __name__ == "__main__":
+    main()

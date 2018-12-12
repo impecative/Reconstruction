@@ -1,5 +1,5 @@
 from __future__ import division, print_function # python 2 compatibility.
-from normalisation import *   # functions from normalisation.py
+from functions import *
 import numpy as np
 from numpy.linalg import inv, multi_dot, solve
 import scipy.optimize
