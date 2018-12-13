@@ -270,7 +270,33 @@ def stereoImages(x1s, y1s, x2s, y2s, w1, w2, h1, h2):
     plt.suptitle("Points as Imaged by Two Stereo-Cameras")
     # plt.show()
 
-def draw3D(points3D, cameracentre1, cameracentre2, TL1, TR1, BR1, BL1, TL2, TR2, BR2, BL2):
+def draw3D(points3D, cameracentre1, cameracentre2, TL1, TR1, BR1, BL1, TL2, TR2, BR2, BL2, tvec, rot_matrix, shrink_factor=1):
+    # projected points for camera 1 
+    prTL1 = findCoordinatesForZ(TL1, cameracentre1, findFurthestPoint(points3D, cameracentre1)[2]/shrink_factor)
+    prTR1 = findCoordinatesForZ(TR1, cameracentre1, findFurthestPoint(points3D, cameracentre1)[2]/shrink_factor)
+    prBR1 = findCoordinatesForZ(BR1, cameracentre1, findFurthestPoint(points3D, cameracentre1)[2]/shrink_factor)
+    prBL1 = findCoordinatesForZ(BL1, cameracentre1, findFurthestPoint(points3D, cameracentre1)[2]/shrink_factor)
+
+    # to find these for camera 2 we need to first assume camera is at origin also, then transform to new position...
+    # untransform to origin...
+    TL2 = untransformpoint(TL2, rot_matrix, tvec)
+    TR2 = untransformpoint(TR2, rot_matrix, tvec)
+    BR2 = untransformpoint(BR2, rot_matrix, tvec)
+    BL2 = untransformpoint(BL2, rot_matrix, tvec)
+
+    prTL2 = findCoordinatesForZ(TL2, cameracentre1, findFurthestPoint(points3D, cameracentre1)[2]/shrink_factor)
+    prTR2 = findCoordinatesForZ(TR2, cameracentre1, findFurthestPoint(points3D, cameracentre1)[2]/shrink_factor)
+    prBR2 = findCoordinatesForZ(BR2, cameracentre1, findFurthestPoint(points3D, cameracentre1)[2]/shrink_factor)
+    prBL2 = findCoordinatesForZ(BL2, cameracentre1, findFurthestPoint(points3D, cameracentre1)[2]/shrink_factor)
+
+    prTL2 = transformpoint(prTL2, rot_matrix, tvec)
+    prTR2 = transformpoint(prTR2, rot_matrix, tvec)
+    prBR2 = transformpoint(prBR2, rot_matrix, tvec)
+    prBL2 = transformpoint(prBL2, rot_matrix, tvec)
+
+    
+
+    
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
 
@@ -279,9 +305,30 @@ def draw3D(points3D, cameracentre1, cameracentre2, TL1, TR1, BR1, BL1, TL2, TR2,
     ax.scatter(xs, ys, zs, c="b", label="3D points")
     ax.scatter(cameracentre1[0], cameracentre1[1], cameracentre1[1], c="g", label="Camera 1 Centre")
     ax.scatter(cameracentre2[0], cameracentre2[1], cameracentre2[2], c="m", label="Camera 2 Centre")
+    # plot the 3D positions of the projected CCD corners
+    ax.plot([prTL1[0], prTR1[0]], [prTL1[1], prTR1[1]], [prTL1[2], prTR1[2]], c="r", alpha=0.5, label="CCD Boundaries")
+    ax.plot([prTR1[0], prBL1[0]], [prTL1[1], prBL1[1]], [prTR1[2], prBL1[2]], c="r", alpha=0.5)
+    ax.plot([prBL1[0], prBR1[0]], [prBL1[1], prBR1[1]], [prBL1[2], prBR1[2]], c="r", alpha=0.5)
+    ax.plot([prTL1[0], prBR1[0]], [prTL1[1], prBR1[1]], [prTL1[2], prBR1[2]], c="r", alpha=0.5)
+    ax.plot([prTL1[0], cameracentre1[0]], [prTL1[1], cameracentre1[1]], [prTL1[2], cameracentre1[2]], c="y", alpha=0.5)
+    ax.plot([prTR1[0], cameracentre1[0]], [prTR1[1], cameracentre1[1]], [prTR1[2], cameracentre1[2]], c="y", alpha=0.5)
+    ax.plot([prBL1[0], cameracentre1[0]], [prBL1[1], cameracentre1[1]], [prBL1[2], cameracentre1[2]], c="y", alpha=0.5)
+    ax.plot([prBR1[0], cameracentre1[0]], [prBR1[1], cameracentre1[1]], [prBR1[2], cameracentre1[2]], c="y", alpha=0.5)
+
+    
+    ax.plot([prTL2[0], prTR2[0]], [prTL2[1], prTR2[1]], [prTL2[2], prTR2[2]], c="r", alpha=0.5)
+    ax.plot([prTR2[0], prBL2[0]], [prTL2[1], prBL2[1]], [prTR2[2], prBL2[2]], c="r", alpha=0.5)
+    ax.plot([prBL2[0], prBR2[0]], [prBL2[1], prBR2[1]], [prBL2[2], prBR2[2]], c="r", alpha=0.5)
+    ax.plot([prTL2[0], prBR2[0]], [prTL2[1], prBR2[1]], [prTL2[2], prBR2[2]], c="r", alpha=0.5)
+    ax.plot([prTL2[0], cameracentre2[0]], [prTL2[1], cameracentre2[1]], [prTL2[2], cameracentre2[2]], c="y", alpha=0.5)
+    ax.plot([prBL2[0], cameracentre2[0]], [prBL2[1], cameracentre2[1]], [prBL2[2], cameracentre2[2]], c="y", alpha=0.5)
+    ax.plot([prTR2[0], cameracentre2[0]], [prTR2[1], cameracentre2[1]], [prTR2[2], cameracentre2[2]], c="y", alpha=0.5)
+    ax.plot([prBR2[0], cameracentre2[0]], [prBR2[1], cameracentre2[1]], [prBR2[2], cameracentre2[2]], c="y", alpha=0.5)
+
 
 
     ax.legend()
+    ax.axis("equal")
     ax.set_xlabel("x ")
     ax.set_ylabel("y ")
     ax.set_zlabel("z ")
@@ -335,7 +382,7 @@ def normalisation(arr):
 def findCoordinatesForZ(A, B, z):
     '''Find the 3D coordinates of the point at a given z-value, for the point on the line 
     linking coordinates A and B.'''
-    d = A-B
+    d = B-A
     l, m, n = d
     x1, y1, z1 = A
 
@@ -377,7 +424,7 @@ class Sim:
         for i in range(points.shape[0]):
             points[i][0] = random.uniform(-10, 10)    # xs
             points[i][1] = random.uniform(-10, 10)    # ys
-            points[i][2] = random.uniform(5, 100)     # zs
+            points[i][2] = random.uniform(45, 55)     # zs
 
         self.points3D   = points
         self.w1         = Cam1.sensor_width 
@@ -428,7 +475,9 @@ class Sim:
         seenpoints = []
         for point in self.points3D:
             seen1, x1, y1 = pointInCamera1Image(point, self.w1, self.h1, self.f1, self.p1, self.camera1centre)
-            seen2, x2, y2 = pointInCamera2Image(point, self.w2, self.h2, self.f2, self.p2, self.camera2centre, self.tvec, self.R)   
+            seen2, x2, y2 = pointInCamera2Image(point, self.w2, self.h2, self.f2, self.p2, self.camera2centre, self.tvec, self.R) 
+            print((x1, y1))
+            print((x2, y1))  
 
             if seen1 and seen2:
                 x1s.append(x1)
@@ -475,7 +524,7 @@ class Sim:
     
     def scene3D(self):
         draw3D(self.points3D, self.camera1centre, self.camera2centre, self.TL1, self.TR1, self.BR1, self.BL1, 
-               self.TL2, self.TR2, self.BR2, self.BL2)
+               self.TL2, self.TR2, self.BR2, self.BL2, self.tvec, self.R, shrink_factor=1)
     
     def returnPoints(self):
         return self.points3D
@@ -496,23 +545,25 @@ def main():
     focal_length = 50e-3   # focal length of camera 1 (m)
     pixel_size  = 3.9e-6   # linear dimension of a pixel (m)
     point3D = np.array([[0,0,50]])
-    camera2centre = np.array([100,0,50])
+    camera2centre = np.array([0,0,0])
     
 
     Cam1 = Camera(cameracentre, focal_length, sensor_width, sensor_height, pixel_size)
 
     Cam2 = Camera(camera2centre, focal_length, sensor_width, sensor_height, pixel_size)
 
-    sim = Sim(200, Cam1, Cam2, yaw=0, pitch=-90, roll=0)
+    sim = Sim(200, Cam1, Cam2, yaw=0, pitch=45, roll=0)
 
-    x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
+    # x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
-    sim.drawImages(x1s, y1s, x2s, y2s)
+    # sim.drawImages(x1s, y1s, x2s, y2s)
 
     sim.scene3D()
 
-    sim.seenpoints3D(seenpoints)
-    # sim.testPoint(np.array([0,0,50]))
+    # sim.seenpoints3D(seenpoints)
+    # sim.testPoint(np.array([0,0,1]))
+    # sim.testPoint(np.array([0,0,2]))
+    # sim.testPoint(np.array([0,0,5e5]))
 
     # points = sim.returnPoints()
 
