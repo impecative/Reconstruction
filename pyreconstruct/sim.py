@@ -5,8 +5,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 import random
-from norm8point import *
+from n8p import *
 from functions import *
+import cv2
 
 # to get arrows pointing in 3D # 
 class Arrow3D(FancyArrowPatch):
@@ -204,13 +205,13 @@ def main():
     pixel_size1  = 3.9e-6   # linear dimension of a pixel (m)
     sensor1centre = np.array([0,0,focal_length1])
 
-    camera2centre = np.array([5, 7, 10])  # location of the second camera sensor
+    camera2centre = np.array([10, 0, 50])  # location of the second camera sensor
     sensor2_width, sensor2_height = 23.5e-3, 15.6e-3    # sensor dimensions of second camera (m) - not necessary to be equal to camera 1
     focal_length2 = 50e-3   # focal length of camera 2 (m)
     pixel_size2   = 3.9e-6  # linear dimension of a pixel (m)
 
     tvec = camera2centre - camera1centre   # translation vector between camera 1 and camera 2
-    R = RotationMatrix(yaw=0, pitch=12, roll=12)
+    R = RotationMatrix(yaw=0, pitch=0, roll=0)
 
     # print("rotation matrix R = ", R)
     sensor2centre = transformpoint(sensor1centre, R, tvec)
@@ -366,8 +367,16 @@ def main():
 
     # from the reconstruction - seems to be a scale ambiguity
     p1, p2 = cameraMatrices(img1coords, img2coords)
-    # print(p1)
-    # print(p2)
+    OpenCVF = cv2.findFundamentalMat(img1coords, img2coords)[0]
+    CVP1, CVP2 = findCameras(OpenCVF)
+    cvK1, cvR1, cvC1 = decomposeCameraMtx(CVP1)
+    cvK2, cvR2, cvC2 = decomposeCameraMtx(CVP2)
+
+    print("Open CV finds the following properties of the second camera: ")
+    print("Calibration matrix is: ")
+    print(cvK2)
+    print("Rotation matrix is: ")
+    print(cvR2)
 
     K1, R1, C1 = decomposeCameraMtx(p1)
     K2, R2, C2 = decomposeCameraMtx(p2)
@@ -376,10 +385,10 @@ def main():
     # print(K1)
     # print(R1)
     # print(C1)
-    # print("\nCamera matrix 2 has calibration matrix, rotation matrix and centre: ")
-    # print(K2)
-    # print(R2)
-    # print(C2)
+    print("\nCamera matrix 2 has calibration matrix, rotation matrix and centre: ")
+    print(K2)
+    print(R2)
+    print(C2)
 
 
     # Now use my own camera matrices...
@@ -399,7 +408,7 @@ def main():
         x1, x2 = img1coords[i], img2coords[i]
 
         # now triangulate the points newx1, newx2 back to a 3D point X
-        X = triangulate(x1, x2, P1, P2)
+        X = triangulate(x1, x2, CVP1, CVP2)
 
         # now store this 3D point
         points3D_measured[i] = X

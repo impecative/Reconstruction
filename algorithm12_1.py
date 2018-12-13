@@ -313,6 +313,8 @@ def main():
     R1, R2 = getRotationMatrices(e1, e2)
     newF = rotateFundamentalMatrix(newF, R1, R2)
 
+
+
     # get constants and form polynomial (12.7)
     a,b,c,d,f,g = formPolynomial(e1, e2, newF)
 

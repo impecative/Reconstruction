@@ -4,6 +4,8 @@ import scipy as sp
 import random
 random.seed(10)  # this should remain constant for testing, remove for true random distribution
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import proj3d
 
 def skew(V):
     '''Form a skew symmetric matrix from 3-vector V'''
@@ -45,7 +47,7 @@ def decomposeCameraMtx(p):
     # assert np.allclose(-M@c, p[:,-1]), "-MC is not equal to last column of p for some reason..."
 
     # find K, R from RQ-decomposition of M
-    K, R = scipy.linalg.rq(M)
+    K, R = sp.linalg.rq(M)
 
     # remove ambiguity in the RQ decomposition by making diagonals of K positive.
     T = np.diag(np.sign(np.diag(K)))
@@ -237,14 +239,14 @@ def stereoImages(x1s, y1s, x2s, y2s, w1, w2, h1, h2):
               on the two images of Camera 1 and Camera 2 respectively.
               CCD dimensions of Camera 1 (w1, h1) and Camera 2 (w2, h2)
               \n IN UNITS OF PIXELS...'''
-    fig = plt.figure(2)
+    fig = plt.figure()
     ax1 = plt.subplot(121)
     plt.plot(x1s, y1s, "bx")
     # plot the sensor on
-    plt.plot([0,w1], [0, 0], "r", alpha=0.3)
-    plt.plot([w1,w1], [0, h1], "r", alpha=0.3)
-    plt.plot([w1,0], [h1, h1], "r", alpha=0.3)
-    plt.plot([0, 0], [h1, 0], "r", alpha=0.3)
+    plt.plot([0,w1], [0, 0], "r", alpha=0.3)   # bottom horizontal
+    plt.plot([w1,w1], [0, h1], "r", alpha=0.3) # right vertical
+    plt.plot([w1,0], [h1, h1], "r", alpha=0.3) # top horizontal
+    plt.plot([0, 0], [h1, 0], "r", alpha=0.3)  # left vertical
 
     ax1.set_aspect("equal")
     plt.xlabel("x-direction (pixels)")
@@ -268,6 +270,24 @@ def stereoImages(x1s, y1s, x2s, y2s, w1, w2, h1, h2):
     plt.suptitle("Points as Imaged by Two Stereo-Cameras")
     # plt.show()
 
+def draw3D(points3D, cameracentre1, cameracentre2, TL1, TR1, BR1, BL1, TL2, TR2, BR2, BL2):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+
+    xs, ys, zs = points3D[:,0], points3D[:,1], points3D[:,2]
+
+    ax.scatter(xs, ys, zs, c="b", label="3D points")
+    ax.scatter(cameracentre1[0], cameracentre1[1], cameracentre1[1], c="g", label="Camera 1 Centre")
+    ax.scatter(cameracentre2[0], cameracentre2[1], cameracentre2[2], c="m", label="Camera 2 Centre")
+
+
+    ax.legend()
+    ax.set_xlabel("x ")
+    ax.set_ylabel("y ")
+    ax.set_zlabel("z ")
+
+
+
 def centroid(arr):
     """For a set of coordinates, compute the centroid position."""
     length = arr.shape[0]      # length of the array
@@ -282,7 +302,6 @@ def translation(arr):
     x_c, y_c = centroid(arr)
     newpoints = np.array((arr[:,0]-x_c, arr[:,1]-y_c))
     return newpoints.T
-   
 
 def avgDisplacement(arr):
     """Finds the average displacement of a set of points (x_i, y_i)
@@ -312,6 +331,32 @@ def normalisation(arr):
     newpoints = scale(points)
 
     return newpoints
+
+def findCoordinatesForZ(A, B, z):
+    '''Find the 3D coordinates of the point at a given z-value, for the point on the line 
+    linking coordinates A and B.'''
+    d = A-B
+    l, m, n = d
+    x1, y1, z1 = A
+
+    y = m/n * (z-z1) + y1
+    x = l/m * (z-z1) + x1
+
+    return np.array([x,y,z])
+
+def findFurthestPoint(arr_of_points, cameracentre):
+    """Find the coordinate of the point that is furthest from the camera centre"""
+    maxpoint = None
+    maxdistance = 0
+    for point in arr_of_points:
+        distance = np.linalg.norm(point-cameracentre)
+        if distance > maxdistance:
+            maxdistance = distance
+            maxpoint = point
+        else:
+            pass
+    
+    return maxpoint
 
 
 class Camera:
@@ -344,24 +389,53 @@ class Sim:
         self.f2         = Cam2.focal_length
         self.p2         = Cam2.pixel_size
         self.camera1centre = Cam1.centre
-        self.camer2centre = Cam2.centre
+        self.camera2centre = Cam2.centre
         self.R = RotationMatrix(yaw, pitch, roll)
         self.tvec = Cam2.centre - Cam1.centre
+
+        # define the sensor points in space:
+        self.TL1 = np.array([-self.w1/2, self.h1/2, self.f1])   # Top Left 1
+        self.TR1 = np.array([self.w1/2, self.h1/2, self.f1])    # Top Right 1
+        self.BR1 = np.array([self.w1/2, -self.h1/2, self.f1])   # Bottom Right 1
+        self.BL1 = np.array([-self.w1/2, -self.h1/2, self.f1])  # Bottom Left 1
+
+        self.TL2 = transformpoint(np.array([-self.w2/2, self.h2/2, self.f2]), self.R, self.tvec)   # Top Left 2
+        self.TR2 = transformpoint(np.array([self.w2/2, self.h2/2, self.f2]), self.R, self.tvec)    # Top Right 2
+        self.BR2 = transformpoint(np.array([self.w2/2, -self.h2/2, self.f2]), self.R, self.tvec)   # Bottom Right 2
+        self.BL2 = transformpoint(np.array([-self.w2/2, -self.h2/2, self.f2]), self.R, self.tvec)  # Bottom Left 2
+
+
+
+    def testPoint(self, point):
+        seen1, x1, y1 = pointInCamera1Image(point, self.w1, self.h1, self.f1, self.p1, self.camera1centre)
+        seen2, x2, y2 = pointInCamera2Image(point, self.w2, self.h2, self.f2, self.p2, self.camera2centre, self.tvec, self.R)
+        if seen1 and seen2:
+            # fix the image coordinates
+            x1, y1 = fixImgCoords(x1, y1, self.w1/self.p1, self.h1/self.p1)
+            x2, y2 = fixImgCoords(x2, y2, self.w2/self.p2, self.h2/self.p2)
+
+            stereoImages([x1], [y1], [x2], [y2], self.w1/self.p1, self.w2/self.p2, self.h1/self.p1, self.h2/self.p2)
+        
+        else:
+            print("Point not seen by BOTH cameras...")
+
 
     def synchImages(self):
         """Check if 3D point is visible to BOTH cameras. 
         \nIf so, then return it's pixel coordinates in each image... """
         x1s, y1s = [], []
         x2s, y2s = [], []
+        seenpoints = []
         for point in self.points3D:
             seen1, x1, y1 = pointInCamera1Image(point, self.w1, self.h1, self.f1, self.p1, self.camera1centre)
-            seen2, x2, y2 = pointInCamera2Image(point, self.w2, self.h2, self.f2, self.p2, self.camer2centre, self.tvec, self.R)   
+            seen2, x2, y2 = pointInCamera2Image(point, self.w2, self.h2, self.f2, self.p2, self.camera2centre, self.tvec, self.R)   
 
             if seen1 and seen2:
                 x1s.append(x1)
                 x2s.append(x2)
                 y1s.append(y1)
                 y2s.append(y2)
+                seenpoints.append(point)
             
         print("{} out of {} points can be seen in both images".format(len(x1s), len(self.points3D)))
         
@@ -375,20 +449,38 @@ class Sim:
             x2s[i] = x2
             y2s[i] = y2
 
-        return x1s, y1s, x2s, y2s
+        return x1s, y1s, x2s, y2s, seenpoints
+
+    def seenpoints3D(self, seenpoints):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        for point in seenpoints:
+            x, y, z = point
+            ax.plot([x, self.camera1centre[0]], [y, self.camera1centre[1]], [z, self.camera1centre[2]], c="m")
+            ax.plot([x, self.camera2centre[0]], [y, self.camera2centre[1]], [z, self.camera2centre[2]], c="y")
+            ax.scatter(x,y,z, c="b")
+        
+        ax.scatter(self.camera1centre[0], self.camera1centre[1], self.camera1centre[2], c="g", label="Camera 1 Centre")
+        ax.scatter(self.camera2centre[0], self.camera2centre[1], self.camera2centre[2], c="r", label="Camera 2 Centre")
+
+        ax.legend()
+        ax.set_xlabel("x ")
+        ax.set_ylabel("y ")
+        ax.set_zlabel("z ")
+
     
     def drawImages(self, x1s, y1s, x2s, y2s):
         stereoImages(x1s, y1s, x2s, y2s, self.w1/self.p1, self.w2/self.p2, self.h1/self.p1, self.h2/self.p2)
-        plt.show()
+        # plt.show()
+    
+    def scene3D(self):
+        draw3D(self.points3D, self.camera1centre, self.camera2centre, self.TL1, self.TR1, self.BR1, self.BL1, 
+               self.TL2, self.TR2, self.BR2, self.BL2)
+    
+    def returnPoints(self):
+        return self.points3D
 
 def main(): 
-    cameracentre = np.array([0,0,0])   # let camera 1 lie at the origin of the coordinate system (m)
-    sensor_width, sensor_height = 23.5e-3, 15.6e-3     # sensor dimensions of first camera (m)
-    focal_length = 50e-3   # focal length of camera 1 (m)
-    pixel_size  = 3.9e-6   # linear dimension of a pixel (m)
-    point3D = np.array([[0,0,50]])
-    camera2centre = np.array([0,0,100])
-
     """# user input camera parameters:
     camcentre = input("Please Input Camera 2 Position (separated by commas): ")
     camera2centre = np.array([0,0,0])
@@ -399,16 +491,36 @@ def main():
     sensor_height= float(input("Input the height of the CCD (in metres): "))
     pixel_size   = float(input("Input the linear dimension of each pixel (in metres): "))"""
 
+    cameracentre = np.array([0,0,0])   # let camera 1 lie at the origin of the coordinate system (m)
+    sensor_width, sensor_height = 23.5e-3, 15.6e-3     # sensor dimensions of first camera (m)
+    focal_length = 50e-3   # focal length of camera 1 (m)
+    pixel_size  = 3.9e-6   # linear dimension of a pixel (m)
+    point3D = np.array([[0,0,50]])
+    camera2centre = np.array([100,0,50])
+    
+
     Cam1 = Camera(cameracentre, focal_length, sensor_width, sensor_height, pixel_size)
 
     Cam2 = Camera(camera2centre, focal_length, sensor_width, sensor_height, pixel_size)
 
-    sim = Sim(200, Cam1, Cam2, yaw=0, pitch=180, roll=0)
+    sim = Sim(200, Cam1, Cam2, yaw=0, pitch=-90, roll=0)
 
-    x1s, y1s, x2s, y2s = sim.synchImages()
+    x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
     sim.drawImages(x1s, y1s, x2s, y2s)
-    # plt.show()
+
+    sim.scene3D()
+
+    sim.seenpoints3D(seenpoints)
+    # sim.testPoint(np.array([0,0,50]))
+
+    # points = sim.returnPoints()
+
+    # print("3D point is at: ", points)
+
+
+
+    plt.show()
 
 if __name__ == "__main__":
     main()

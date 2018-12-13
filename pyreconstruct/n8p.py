@@ -6,6 +6,8 @@ from functions import *
 from a_12_1 import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import cv2 as cv
+recognizer = cv.face.LBPHFaceRecognizer_create()
 
 # compute the fundamental matrix F from n>= 8 point matches {x_i, x'_i}
 # first normalise the coordinates
@@ -273,12 +275,20 @@ def main():
 
     F = getOriginalFundamentalMatrix(newF, T1, T2)
 
-    print(F)
+    # print(F)
+
+    # OpenCV find fundamental matrix...
+    cvF = cv.findFundamentalMat(img1coords, img2coords)[0]
+
+    # print("OpenCV finds the fundmamental matrix to be: ")
+    P1, P2 = findCameras(cvF)
+    K, R, C = decomposeCameraMtx(P2)
+    print(P2)
 
     p1, p2 = findCameras(F)
 
-    print("The cameras corresponding to F are: ")
-    print("P  = ", p1)
+    # print("The cameras corresponding to F are: ")
+    # print("P  = ", p1)
     print("P' = ", p2)
 
 
