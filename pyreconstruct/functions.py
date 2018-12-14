@@ -333,8 +333,6 @@ def draw3D(points3D, cameracentre1, cameracentre2, TL1, TR1, BR1, BL1, TL2, TR2,
     ax.set_ylabel("y ")
     ax.set_zlabel("z ")
 
-
-
 def centroid(arr):
     """For a set of coordinates, compute the centroid position."""
     length = arr.shape[0]      # length of the array
@@ -405,6 +403,25 @@ def findFurthestPoint(arr_of_points, cameracentre):
     
     return maxpoint
 
+def pickGroundTruthPoints(arr_of_points, no_ground_truths=5):
+    """Randomly select the coordinates of 5 (default) 3D points to act as ground truths to recover the 
+    metric reconstruction of the projection..."""
+    index = []
+
+    while len(index) < 5: 
+        i = random.randint(0, len(arr_of_points)-1)
+        if not i in index:
+            index.append(i)
+            continue
+        continue
+    
+    points = np.zeros((5,3))
+
+    print(index)
+    for i in range(len(index)):
+        points[i] = arr_of_points[index[i]]
+    
+    return points
 
 class Camera:
     """Define Camera centre, focal lenght, sensor dimensions and pixel dimensions..."""
@@ -568,10 +585,7 @@ def main():
     # points = sim.returnPoints()
 
     # print("3D point is at: ", points)
-
-
-
-    plt.show()
+    
 
 if __name__ == "__main__":
     main()

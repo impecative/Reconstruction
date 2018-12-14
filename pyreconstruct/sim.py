@@ -368,15 +368,18 @@ def main():
     # from the reconstruction - seems to be a scale ambiguity
     p1, p2 = cameraMatrices(img1coords, img2coords)
     OpenCVF = cv2.findFundamentalMat(img1coords, img2coords)[0]
+    print(p1, p2)
+    print(findCameras(OpenCVF))
+
     CVP1, CVP2 = findCameras(OpenCVF)
     cvK1, cvR1, cvC1 = decomposeCameraMtx(CVP1)
     cvK2, cvR2, cvC2 = decomposeCameraMtx(CVP2)
 
-    print("Open CV finds the following properties of the second camera: ")
-    print("Calibration matrix is: ")
-    print(cvK2)
-    print("Rotation matrix is: ")
-    print(cvR2)
+    # print("Open CV finds the following properties of the second camera: ")
+    # print("Calibration matrix is: ")
+    # print(cvK2)
+    # print("Rotation matrix is: ")
+    # print(cvR2)
 
     K1, R1, C1 = decomposeCameraMtx(p1)
     K2, R2, C2 = decomposeCameraMtx(p2)
@@ -385,10 +388,10 @@ def main():
     # print(K1)
     # print(R1)
     # print(C1)
-    print("\nCamera matrix 2 has calibration matrix, rotation matrix and centre: ")
-    print(K2)
-    print(R2)
-    print(C2)
+    # print("\nCamera matrix 2 has calibration matrix, rotation matrix and centre: ")
+    # print(K2)
+    # print(R2)
+    # print(C2)
 
 
     # Now use my own camera matrices...
