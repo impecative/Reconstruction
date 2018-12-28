@@ -7,6 +7,7 @@ from mpl_toolkits.mplot3d import proj3d
 import random
 from n8p import *
 from functions import *
+from a_12_1 import *
 import cv2
 
 # to get arrows pointing in 3D # 
@@ -205,13 +206,23 @@ def main():
     pixel_size1  = 3.9e-6   # linear dimension of a pixel (m)
     sensor1centre = np.array([0,0,focal_length1])
 
-    camera2centre = np.array([10, 0, 50])  # location of the second camera sensor
+    camera2centre = np.array([20, 0, 0])  # location of the second camera sensor
     sensor2_width, sensor2_height = 23.5e-3, 15.6e-3    # sensor dimensions of second camera (m) - not necessary to be equal to camera 1
     focal_length2 = 50e-3   # focal length of camera 2 (m)
     pixel_size2   = 3.9e-6  # linear dimension of a pixel (m)
 
     tvec = camera2centre - camera1centre   # translation vector between camera 1 and camera 2
-    R = RotationMatrix(yaw=0, pitch=0, roll=0)
+    R = RotationMatrix(yaw=0, pitch=-12, roll=0)
+
+    # calibration matrices
+    K1 = np.array([[focal_length1/pixel_size1, 0, (sensor1_width/pixel_size1 /2)], 
+                   [0, focal_length1/pixel_size1,  (sensor1_height/pixel_size1 /2)], [0,0,1]])
+    K2 = np.array([[focal_length2/pixel_size2, 0, (sensor2_width/pixel_size2 /2)], 
+                   [0, focal_length2/pixel_size2, (sensor2_height/pixel_size2 /2)], [0,0,1]])
+    P1 = K1 @ np.c_[np.eye(3), np.array([0,0,0])]
+    P2 = K2 @ np.c_[R, tvec]
+
+    print(P1, P2)
 
     # print("rotation matrix R = ", R)
     sensor2centre = transformpoint(sensor1centre, R, tvec)
@@ -350,7 +361,7 @@ def main():
     ax.set_ylabel("y ")
     ax.set_zlabel("z ")
     ax.legend()
-    plt.show()
+    # plt.show()
 
     ########################## 3D reconstruction #################################
     assert len(img1xcoords) >= 8, "Only have {} point matches, we need >=8".format(len(img1xcoords))
@@ -365,45 +376,45 @@ def main():
         img2coords[i][0] = img2xcoords[i]
         img2coords[i][1] = img2ycoords[i]
 
-    # from the reconstruction - seems to be a scale ambiguity
-    p1, p2 = cameraMatrices(img1coords, img2coords)
-    OpenCVF = cv2.findFundamentalMat(img1coords, img2coords)[0]
-    print(p1, p2)
-    print(findCameras(OpenCVF))
+    # # from the reconstruction - seems to be a scale ambiguity
+    # p1, p2 = cameraMatrices(img1coords, img2coords)
+    # OpenCVF = cv2.findFundamentalMat(img1coords, img2coords)[0]
+    # print(p1, p2)
+    # print(findCameras(OpenCVF))
 
-    CVP1, CVP2 = findCameras(OpenCVF)
-    cvK1, cvR1, cvC1 = decomposeCameraMtx(CVP1)
-    cvK2, cvR2, cvC2 = decomposeCameraMtx(CVP2)
+    # CVP1, CVP2 = findCameras(OpenCVF)
+    # cvK1, cvR1, cvC1 = decomposeCameraMtx(CVP1)
+    # cvK2, cvR2, cvC2 = decomposeCameraMtx(CVP2)
 
-    # print("Open CV finds the following properties of the second camera: ")
-    # print("Calibration matrix is: ")
-    # print(cvK2)
-    # print("Rotation matrix is: ")
-    # print(cvR2)
+    # # print("Open CV finds the following properties of the second camera: ")
+    # # print("Calibration matrix is: ")
+    # # print(cvK2)
+    # # print("Rotation matrix is: ")
+    # # print(cvR2)
 
-    K1, R1, C1 = decomposeCameraMtx(p1)
-    K2, R2, C2 = decomposeCameraMtx(p2)
+    # K1, R1, C1 = decomposeCameraMtx(p1)
+    # K2, R2, C2 = decomposeCameraMtx(p2)
 
-    # print("Camera matrix 1 has calibration matrix, rotation matrix and centre: ")
-    # print(K1)
-    # print(R1)
-    # print(C1)
-    # print("\nCamera matrix 2 has calibration matrix, rotation matrix and centre: ")
-    # print(K2)
-    # print(R2)
-    # print(C2)
+    # # print("Camera matrix 1 has calibration matrix, rotation matrix and centre: ")
+    # # print(K1)
+    # # print(R1)
+    # # print(C1)
+    # # print("\nCamera matrix 2 has calibration matrix, rotation matrix and centre: ")
+    # # print(K2)
+    # # print(R2)
+    # # print(C2)
 
 
-    # Now use my own camera matrices...
-    K = np.array([[195e-9, 0,0], [0,195e-9, 0], [0,0,1]])
-    R1 = np.eye(3)
-    C1 = camera1centre
-    R2 = R
-    C2 = camera2centre
+    # # Now use my own camera matrices...
+    # K = np.array([[195e-9, 0,0], [0,195e-9, 0], [0,0,1]])
+    # R1 = np.eye(3)
+    # C1 = camera1centre
+    # R2 = R
+    # C2 = camera2centre
     
-    P1 = np.c_[K, np.zeros((3,1))]
-    lastcol2 = - R2 @ C2 
-    P2 = K @ np.c_[R2, lastcol2]
+    # P1 = np.c_[K, np.zeros((3,1))]
+    # lastcol2 = - R2 @ C2 
+    # P2 = K @ np.c_[R2, lastcol2]
 
     points3D_measured = np.zeros((len(img1coords), 3))
 
@@ -411,7 +422,7 @@ def main():
         x1, x2 = img1coords[i], img2coords[i]
 
         # now triangulate the points newx1, newx2 back to a 3D point X
-        X = triangulate(x1, x2, CVP1, CVP2)
+        X = triangulate(x1, x2, P1, P2)
 
         # now store this 3D point
         points3D_measured[i] = X
@@ -420,7 +431,10 @@ def main():
     ax = fig.add_subplot(111, projection="3d")
     xs, ys, zs = points3D_measured[:,0], points3D_measured[:,1], points3D_measured[:,2]
     ax.scatter(xs, ys, zs, c="b")
-    # plt.show()
+    ax.set_xlabel("x ")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+    plt.show()
 
     points3D = estimate3DPoints(img1coords, img2coords)
 

@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import numpy as np
 import scipy as sp
+import scipy.linalg
 import random
 random.seed(10)  # this should remain constant for testing, remove for true random distribution
 import matplotlib.pyplot as plt
@@ -60,6 +61,76 @@ def decomposeCameraMtx(p):
     K = scale * K
 
     return K, R, c
+
+def decomposeEssentialMatrix(E):
+    """Compute the decomposition of E = U diag(1,1,0) V^T.
+    Return: U, np.diag(1,1,0), V^T"""
+    u, d, vt = np.linalg.svd(E)
+
+    assert np.allclose(d[0], d[1]), "The first two elements of the diagonal are not equal"
+    assert d[-1] == 0, "The final diagonal element is not zero..."
+
+    if not d[0] == 1:
+        scale = 1/d[0]   # force the diagonal elements to be (1,1,0)
+        D = np.diag(scale*d)
+        u = 1/scale * u
+
+    else:
+        D = np.diag(d)
+        pass
+    
+    assert np.allclose(u @ D @ vt, E), "SVD decomposition has not worked!"
+
+    return u, D, vt
+
+def depth(P, X):
+    """Given a 3D point X = (x, y, z) and P = [M|p_4] determine the depth
+    in front of the camera.
+    
+    Return Depth of point X."""
+    if not len(X) == 4:
+        X = np.r_[X,1]   # turn into homgeneous coordinate...
+
+    T = X[-1]
+    M  = P[:3,:3] # 3x3 left hand submatrix
+    p4 = P[:,-1]  # last column of p
+
+    # now P(x, y, z, 1)^T = w(x,y,1)^T
+    x = P @ X 
+    w = 1/x[-1]
+
+    depth = (np.sign(np.linalg.det(M)) * w)/(T*np.linalg.norm(M[:,2]))
+
+    return depth
+
+def findCamerafromEssentialMTX(E, arbitrary3Dpoint):
+    """Given E, compute the four possible camera matrices for camera 2. 
+    Then we check which of these four solutions is physical with an arbitrarily chosen 
+    computed 3D point. Return the two camera matrices..."""
+    X = arbitrary3Dpoint
+
+    u, _, vt = decomposeEssentialMatrix(E)
+    W = np.array([[0, -1, 0], [1,0,0], [0,0,1]])
+    # Z = np.array([[0,1,0], [-1,0,0], [0,0,0]])
+    u3 = u[:,-1]
+
+    P1 = np.c_[u @ W @ vt, u3]
+    P2 = np.c_[u @ W @ vt, -u3]
+    P3 = np.c_[u @ W.T @ vt, u3]
+    P4 = np.c_[u @ W.T @ vt, -u3]
+
+    cameras = [P1, P2, P3, P4]
+    P0 = np.c_[np.eye(3),np.array([0,0,0])]
+    assert depth(P0, X) > 0, "Original Camera cannot see the point!"
+
+    for P in cameras:
+        criteria = depth(P, X)
+        if criteria > 0:
+            return P0, P
+        else:
+            pass
+        
+    return None
 
 def unit(vec):
     """Return the unit vector of vector."""
@@ -586,6 +657,6 @@ def main():
 
     # print("3D point is at: ", points)
     
-
+    plt.show()
 if __name__ == "__main__":
     main()
