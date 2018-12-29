@@ -2,8 +2,8 @@ from __future__ import division, print_function   # for python 2 compatibility.
 import numpy as np
 import scipy
 import time
-from functions import *
 from a_12_1 import *
+from functions import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import cv2 as cv
@@ -166,7 +166,7 @@ def cameraMatrices(img1_points, img2_points):
 
     p1, p2 = findCameras(F)
 
-    return p1, p2
+    return p1, p2, F
 
 def estimate3DPoints(img1_points, img2_points):
     img1coords = img1_points

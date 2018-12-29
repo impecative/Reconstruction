@@ -5,9 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 import random
-from n8p import *
 from functions import *
-from a_12_1 import *
 import cv2
 
 # to get arrows pointing in 3D # 
@@ -222,7 +220,7 @@ def main():
     P1 = K1 @ np.c_[np.eye(3), np.array([0,0,0])]
     P2 = K2 @ np.c_[R, tvec]
 
-    print(P1, P2)
+    # print(np.linalg.inv(P1) @ P1)
 
     # print("rotation matrix R = ", R)
     sensor2centre = transformpoint(sensor1centre, R, tvec)
@@ -253,6 +251,11 @@ def main():
     fig = plt.figure(1)
     ax = fig.add_subplot(111, projection="3d")
 
+    seenxs = []
+    seenys = []
+    seenzs = []
+
+
     for point in points:
         x,y,z = point
         # is it seen by camera 1?
@@ -270,6 +273,10 @@ def main():
         # print(x2, y2)
 
         if seen1 and seen2:  # seen by both cameras
+            seenxs.append(x)
+            seenys.append(y)
+            seenzs.append(z)
+
             ax.scatter(x,y,z, c="g")
             
             ax.plot([camera1centre[0], x], [camera1centre[1], y], [camera1centre[2], z], c="g", alpha=0.3)
@@ -279,6 +286,7 @@ def main():
             img1ycoords.append(y1)
             img2xcoords.append(x2)
             img2ycoords.append(y2)
+            arbitrarypoint = point
             counter += 1
     ax.scatter(camera1centre[0], camera1centre[1], camera1centre[2], c="m", label="Camera 1 Centre")
     ax.scatter(camera2centre[0], camera2centre[1], camera2centre[2], c="b", label="Camera 2 Centre")
@@ -291,6 +299,11 @@ def main():
     print("Both cameras can see {} out of the total {} points".format(counter, len(points)))
 
     w1, h1, w2, h2 = sensor1_width/pixel_size1, sensor1_height/pixel_size1, sensor2_width/pixel_size2, sensor2_height/pixel_size2
+
+    seenpoints = np.zeros((counter, 3))
+    for i in range(len(seenpoints)):
+        seenpoints[i] = seenxs[i], seenys[i], seenzs[i]
+
 
     # fix the coordinates so the images are at the origin
     for i in range(len(img1xcoords)):
@@ -375,6 +388,15 @@ def main():
         img1coords[i][1] = img1ycoords[i]
         img2coords[i][0] = img2xcoords[i]
         img2coords[i][1] = img2ycoords[i]
+
+    P1, P2, F = cameraMatrices(img1coords, img2coords)
+
+    K1, R1, C1 = decomposeCameraMtx(P1)
+    K2, R2, C2 = decomposeCameraMtx(P2)
+
+    E = compute_essential_matrix(K1, K2, F)
+
+    P1, P2 = findCamerafromEssentialMTX(E, arbitrarypoint)
 
     # # from the reconstruction - seems to be a scale ambiguity
     # p1, p2 = cameraMatrices(img1coords, img2coords)
