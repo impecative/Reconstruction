@@ -438,8 +438,7 @@ def main():
     # lastcol2 = - R2 @ C2 
     # P2 = K @ np.c_[R2, lastcol2]
 
-    points3D_measured = np.zeros((len(img1coords), 3))
-
+    points3D_measured = np.zeros((len(img1coords), 3))  
     for i in range(len(img1coords)):
         x1, x2 = img1coords[i], img2coords[i]
 

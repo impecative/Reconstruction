@@ -502,7 +502,7 @@ def pickGroundTruthPoints(arr_of_points, no_ground_truths=5):
     for i in range(len(index)):
         points[i] = arr_of_points[index[i]]
 
-    return points
+    return points, index
  
 def getTransformationMatrices(coordinate1, coordinate2):
     """Define transformation matrices T1 and T2 that take coordinates
@@ -1051,6 +1051,38 @@ def DLT_form_A(X1, X2):
 
         return A
 
+def ground_truth_reconstruction(P1, P2, X_Ei, X_i, all_projected_points):
+    """
+    Using n>=5 ground control points, compute the metric reconstruction \
+    for all the image points. 
+
+    Parameters
+    ___________
+    P1 : 3 x 4 camera matrix 1
+    P2 : 3 x 4 camera matrix 2
+    X_Ei : "true" Euclidean coordinates of known ground control points
+    X_i : Ground control points in the projective reconstruction
+    all_projected_points : Coordinates of all of the reconstructed points
+
+    Return the metric reconstruction of the cameras, P1, P2, and all the \
+    points. 
+
+    """
+    
+    
+    H = DLT(X_i, X_Ei)
+
+    P1 = P1 @ np.linalg.inv(H)
+    P2 = P2 @ np.linalg.inv(H)
+
+    newpoints = np.zeros(all_projected_points.shape)
+
+    for i in range(len(newpoints)):
+        newpoints[i] = H @ all_projected_points[i]
+
+    
+    return P1, P2, newpoints
+
 def DLT(X1, X2):
     """
     Carry out Algorithm 4.2 as in Hartley and Zisserman to compute the \
@@ -1086,9 +1118,32 @@ def DLT(X1, X2):
 
     return Hnew
 
+def convert_to_array(x1s, y1s, x2s, y2s):
+    """
+    Convert list of image match points to a np.array of homogeneous coordinates. 
+
+    Return: img1coords, img2coords (Homogeneous coordinates)
+    """
+    assert len(x1s) == len(x2s), "The image correspondences must have the same length!"
+
+    img1coords = np.zeros((len(x1s), 3))
+    img2coords = np.zeros(img1coords.shape)
+    img1coords[:,2], img2coords[:,2] = 1,1
+
+    for i in range(len(x1s)):
+        img1coords[i][0] = x1s[i]
+        img1coords[i][1] = y1s[i]
+        img2coords[i][0] = x2s[i]
+        img2coords[i][1] = y2s[i]
+
+    return img1coords, img2coords
+
 
 class Camera:
-    """Define Camera centre, focal lenght, sensor dimensions and pixel dimensions..."""
+    """
+    Define Camera centre, focal lenght, sensor dimensions and pixel \
+    dimensions...
+    """
 
     def __init__(self, cameracentre, focal_length, sensor_width, sensor_height, pixel_size):
         self.centre = cameracentre
@@ -1099,6 +1154,22 @@ class Camera:
 
 
 class Sim:
+    """
+    Simulation class, for the simulation of reconstruction algorithms. 
+    
+    Initialise with parameters: 
+    ___________________________
+    no_of_points : The number of points you want to randomly input into \
+    the simulation.
+    Cam1, Cam2 : Camera1 and Camera2 details, using the Cam class.
+    yaw : The 3D yaw angle in degrees of camera 2 relative to camera1
+    pitch : The 3D pitch angle in degrees of camera 2 relative to cam1
+    roll : the 3D roll angle in degrees of camera 2 relative to camera1
+
+    List of Functions:
+    __________________
+    # TODO
+    """
     def __init__(self, no_of_points, Cam1, Cam2, yaw, pitch, roll):
         self.tvec = Cam2.centre - Cam1.centre
         self.R = RotationMatrix(yaw, pitch, roll)
@@ -1159,8 +1230,8 @@ class Sim:
             seen1, x1, y1 = pointInCamera1Image(point, self.w1, self.h1, self.f1, self.p1, self.camera1centre)
             seen2, x2, y2 = pointInCamera2Image(point, self.w2, self.h2, self.f2, self.p2, self.camera2centre,
                                                 self.tvec, self.R)
-            print((x1, y1))
-            print((x2, y1))
+            # print((x1, y1))
+            # print((x2, y1))
 
             if seen1 and seen2:
                 x1s.append(x1)
@@ -1211,6 +1282,55 @@ class Sim:
     def returnPoints(self):
         return self.points3D
 
+    def reconstruction(self):
+        """
+        Reconstruct the scene up to a projective ambiguity using image \
+        correspondences.
+        """
+        x1s, y1s, x2s, y2s, seenpoints = Sim.synchImages(self)
+        assert len(x1s) >= 8, "Cannot compute fundamental matrix with fewer than 8 point correspondences!"
+
+        # convert image coordinates to correct form...
+        img1coords, img2coords = convert_to_array(x1s, y1s, x2s, y2s)
+
+        # derive camera matrices
+        P1, P2, F = cameraMatrices(img1coords, img2coords)
+
+        # decompose the camera matrix to find camera parameters
+        K1, R1, C1 = decomposeCameraMtx(P1)
+        K2, R2, C2 = decomposeCameraMtx(P2)
+
+        # create array to store 3D coordinates of triangulated points
+        points_triangulated = np.zeros((len(img1coords), 3)) # Inhomogeneous 3-vector
+
+        for i in range(len(points_triangulated)):
+            x1, x2 = img1coords[i], img2coords[i]
+
+            # back project image points to 3D point X, using camera matrices P1 and P2
+            X = triangulate(x1, x2, P1, P2)
+            points_triangulated[i] = X
+
+        # Now we need to fix the projective ambiguity... 
+        # Use ground control truth method...
+        # TODO: This selection of ground truth points isn't working! 
+        gc_points, indexes = pickGroundTruthPoints(seenpoints)
+
+        rc_points = np.array((len(gc_points), 3))
+        for i in range(len(indexes)):
+            rc_points[i] = points_triangulated[indexes[i]]
+
+        print(rc_points, gc_points)
+
+        P1, P2, newpoints = ground_truth_reconstruction(P1, P2, gc_points, rc_points, points_triangulated)
+
+        return newpoints
+
+        
+
+
+
+        
+
 
 def main():
     """# user input camera parameters:
@@ -1236,11 +1356,11 @@ def main():
     Cam2 = Camera(camera2centre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
 
-    sim = Sim(200, Cam1, Cam2, yaw=0, pitch=45, roll=0)
+    sim = Sim(200, Cam1, Cam2, yaw=0, pitch=-12, roll=0)
 
-    # x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
+    x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
-    # sim.drawImages(x1s, y1s, x2s, y2s)
+    sim.drawImages(x1s, y1s, x2s, y2s)
 
     sim.scene3D()
 
@@ -1252,6 +1372,14 @@ def main():
     # points = sim.returnPoints()
 
     # print("3D point is at: ", points)
+
+    points_triangulated = sim.reconstruction()
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    xs, ys, zs = points_triangulated[:,0], points_triangulated[:,1], points_triangulated[:,2]
+    ax.scatter(xs, ys, zs)
+
 
     plt.show()
 
