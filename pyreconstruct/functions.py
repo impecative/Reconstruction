@@ -310,6 +310,8 @@ def pointInCamera2Image(point3D, sensor_width, sensor_height, focal_length, pixe
 
 def fixImgCoords(imgx, imgy, sensor_width, sensor_height):
     '''Return the image coordinates as a np.array with the origin at the bottom left corner of the image.'''
+    # TODO: This should quite possibly be the TOP LEFT corner! 
+    # TODO: CHECK THIS CAREFULLY! 
     w, h = sensor_width, sensor_height
     origin = np.array([-w / 2, -h / 2])
     imgcoordinate = np.array([imgx, imgy])
@@ -489,16 +491,16 @@ def pickGroundTruthPoints(arr_of_points, no_ground_truths=5):
     """
     index = []
 
-    while len(index) < 5:
+    while len(index) < no_ground_truths:
         i = random.randint(0, len(arr_of_points) - 1)
         if not i in index:
             index.append(i)
             continue
         continue
 
-    points = np.zeros((5, 3))
+    points = np.zeros((no_ground_truths, 3))
 
-    print(index)
+    # print(index)
     for i in range(len(index)):
         points[i] = arr_of_points[index[i]]
 
@@ -692,6 +694,7 @@ def find3DPoint(A):
     SVD of A = UDV \n
     X is the last column of V"""
 
+    # print("A = ", A.shape, "matrix")
     u, d, v = np.linalg.svd(A)
     D = np.diag(d)
 
@@ -714,7 +717,11 @@ def homogeneous2Inhomogeneous(X):
 
 def triangulate(imgcoord1, imgcoord2, P1, P2):
     '''Triangulate the coordinates in each image back to a 3D point X, using their 
-    projection matrices P1 and P2 respectively...'''
+    projection matrices P1 and P2 respectively...
+    
+    Return an INHOMOGENEOUS 3-vector coordinate of the point \
+    corresponding to the image in camera 1 with camera matrix P1 and \
+    the image in camera 2 with camera matrix P2. '''
     # first form the matrix A
     A = formA(imgcoord1, imgcoord2, P1, P2)
     
@@ -778,19 +785,11 @@ def formMatrixA(arr_of_imgpoints1, arr_of_imgpoints2):
 def solveFundamentalMatrix(A):
     '''For set of linear equations in matrix A, find f to solve Af=0. \n
     Return F, the matrix form of 9-vector f. '''
-
-    # find SVD of A
-
-    u, d, v = np.linalg.svd(A)
-
-    # least squares solution for f is last column of V
-    f = v[:,-1]
-
-    F = f.reshape(3,3)
-
+    # Find right null space of A (use SVD)
+    F = right_null_space(A)
     # now we need to constrain that det(F)=0, need unique solution! 
 
-    # take SVD of F
+    # Take SVD of F
     u, d, v = np.linalg.svd(F)
 
     # check d = diag(r,s,t), with r >= s >= t. 
@@ -802,6 +801,7 @@ def solveFundamentalMatrix(A):
 
     newF = u @ D @ v
 
+    assert np.linalg.matrix_rank(newF) == 2, "Computed F has rank({}), the correct F should have rank(2)...".format(np.linalg.matrix_rank(newF))
     return newF
 
 def getOriginalFundamentalMatrix(F, T1, T2):
@@ -834,6 +834,18 @@ def findCameras(F):
     return P1, P2
 
 def cameraMatrices(img1_points, img2_points):
+    """
+    Determine the camera matrices p1, p2 and the fundemental matrix 
+    relating image correspondences in image 1 and image 2.
+
+    Inputs:
+    img1_points : np.array of image coordinates in first camera.
+    img2_points : np.array of image coordinate in second camera.
+    NOTE : The points must be corresponding, and in the same order, in 
+           img1_points and img2_points. 
+
+    Out: P1, P2, F
+    """
     img1coords = img1_points
     img2coords = img2_points
 
@@ -1049,6 +1061,11 @@ def DLT_form_A(X1, X2):
         A[:,11], A[:,12], A[:,13] = col12, col13, col14 
         A[:,14], A[:,15] = col15, col16
 
+        while A.shape[0] < 16:
+            A = np.r_[A, np.zeros((1,16))]
+            # print(A.shape)
+
+
         return A
 
 def ground_truth_reconstruction(P1, P2, X_Ei, X_i, all_projected_points):
@@ -1068,13 +1085,24 @@ def ground_truth_reconstruction(P1, P2, X_Ei, X_i, all_projected_points):
     points. 
 
     """
+    # # First check whether the points X_i and X_Ei are homogeneous or not...
+    # if not len(X_i[0]) == 4:
+    #     X_i = np.c_[X_i, np.ones(len(X_i))]
+    # if not len(X_Ei[0]) == 4:
+    #     X_Ei = np.c_[X_Ei, np.ones(len(X_Ei))]
     
-    
+    # print(X_i, X_Ei)
+
+    # print(len(X_Ei), len(X_i))
+
     H = DLT(X_i, X_Ei)
 
+    # print("H = ", H)
     P1 = P1 @ np.linalg.inv(H)
     P2 = P2 @ np.linalg.inv(H)
 
+    if not len(all_projected_points[1]) == 4:
+        all_projected_points = np.c_[all_projected_points, np.ones(len(all_projected_points))]
     newpoints = np.zeros(all_projected_points.shape)
 
     for i in range(len(newpoints)):
@@ -1108,13 +1136,11 @@ def DLT(X1, X2):
     A = DLT_form_A(X1_norm, X2_norm)
 
     # solve using single value decomposition
-    u, d, vt = np.linalg.svd(A)
-    i = np.argmin(d)
-    H = vt[i].reshape(4,4)
-
-    # unnormalise the matrix H to obtain the correct homography
+    H = right_null_space(A)
 
     Hnew = np.linalg.inv(T2) @ H @ T1
+
+    print(A @ Hnew.reshape(16,1))
 
     return Hnew
 
@@ -1137,6 +1163,34 @@ def convert_to_array(x1s, y1s, x2s, y2s):
         img2coords[i][1] = y2s[i]
 
     return img1coords, img2coords
+
+def right_null_space(A):
+    """
+    Compute the right null space of Ah = 0, i.e find vector h, using SVD
+    of A, then the least-squares solution subject to the normalisation
+    that ||h|| = 1. 
+
+    Input: 
+    A : m x n matrix 
+
+    Return n x n square matrix H.  
+    """
+
+    m, n = A.shape
+    
+    # Ensure that A has at least as many rows as columns...
+    while n > m:
+        A = np.r_[A, np.zeros((1,n))]
+    
+    # Compute the SVD of A
+    _, d, vt = np.linalg.svd(A)
+    i = np.argmin(d)
+    h = vt[i]  # TODO: Or is it vt[:,i]?
+
+    # Form a square matrix H
+    H = h.reshape(int(np.sqrt(len(h))), int(np.sqrt(len(h))))
+
+    return H
 
 
 class Camera:
@@ -1313,13 +1367,19 @@ class Sim:
         # Now we need to fix the projective ambiguity... 
         # Use ground control truth method...
         # TODO: This selection of ground truth points isn't working! 
-        gc_points, indexes = pickGroundTruthPoints(seenpoints)
 
-        rc_points = np.array((len(gc_points), 3))
+        # Pick the ground control (euclidean) points, and their indexes within the 
+        # reconstructed points
+        gc_points, indexes = pickGroundTruthPoints(seenpoints, no_ground_truths=10)
+
+        # make a new array to store the reconstructed versions of those 
+        # euclidean known points... 
+        rc_points = np.zeros((len(gc_points), 3))
+        # print(rc_points)
         for i in range(len(indexes)):
             rc_points[i] = points_triangulated[indexes[i]]
 
-        print(rc_points, gc_points)
+        # print(rc_points, gc_points)
 
         P1, P2, newpoints = ground_truth_reconstruction(P1, P2, gc_points, rc_points, points_triangulated)
 
@@ -1374,14 +1434,24 @@ def main():
     # print("3D point is at: ", points)
 
     points_triangulated = sim.reconstruction()
+    # print(points_triangulated[:10])
+    # print(seenpoints[:10])
+
+
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-    xs, ys, zs = points_triangulated[:,0], points_triangulated[:,1], points_triangulated[:,2]
-    ax.scatter(xs, ys, zs)
+    for point in points_triangulated:
+        x,y,z = homogeneous2Inhomogeneous(point)
+
+        ax.scatter(x, y, z)
+
+    for point in seenpoints:
+        x, y, z = point
+        ax.scatter(x,y,z, c="k", alpha=0.2)
 
 
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":
