@@ -535,7 +535,7 @@ def findEpipoles(F):
     Return normalsed epipoles...
     """
 
-    # e1 is the right null-space of F, , so use SVD. 
+    # e1 is the right null-space of F, e2.T is left null space, so use SVD. 
     e1 = right_null_space(F)
     e2 = left_null_space(F).T
 
@@ -774,19 +774,25 @@ def solveFundamentalMatrix(A):
     Return F, the matrix form of 9-vector f. '''
     # Find right null space of A (use SVD)
     F = right_null_space(A)
+    print("rank of uncorrected F is {}".format(np.linalg.matrix_rank(F)))
     
     # Now we need to constrain that det(F)=0, need unique solution! 
     # Take SVD of F
     u, d, v = np.linalg.svd(F)
 
     # Check d = diag(r,s,t), with r >= s >= t. 
-    assert d[0] >= d[1], "The SVD of F has produced a D = diag(r,s,t) where the contraints r >= s >= t have NOT been met..."
-    assert d[1] >= d[2], "The SVD of F has produced a D = diag(r,s,t) where the contraints r >= s >= t have NOT been met..."
+    r, s, t = d
+    assert r >= s, "The SVD of F has produced a D = diag(r,s,t) where the contraints r >= s >= t have NOT been met..."
+    assert s >= t, "The SVD of F has produced a D = diag(r,s,t) where the contraints r >= s >= t have NOT been met..."
 
     # if this criteria is met then the minimised F = U diag(r,s,0) V^T
-    D = np.diag([d[0], d[1], 0])
+    D = np.diag([r, s, 0])
 
     newF = u @ D @ v
+
+    # print("F = ", newF)
+
+    print("F has rank({})".format(np.linalg.matrix_rank(newF)))
 
     assert np.linalg.matrix_rank(newF) == 2, "Computed F has rank({}), the correct F should have rank(2)...".format(np.linalg.matrix_rank(newF))
     return newF
@@ -804,13 +810,7 @@ def findCameras(F):
     P1 = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0]])
 
     # Now we need to compute the epipole e' which satisfies e'.T F = 0. 
-    F_11, F_12, F_13, F_21, F_22, F_23, F_31, F_32, F_33 = F.ravel()
-    a = np.array([[F_11, F_21, F_31], [F_12, F_22, F_32], [F_13, F_23, F_33], [0, 0, 1]])
-    b = np.array([0, 0, 0, 1])
-
-    e2 = np.linalg.lstsq(a,b, rcond=None)[0]    # this is e' in literature.
-
-    # print("Epipole e' is ",e2) 
+    e2 = right_null_space(F.T) 
 
     e2_skew = skew(e2)
     # print("The skew matrix e2 is ", e2_skew)
@@ -1221,7 +1221,7 @@ def right_null_space(A):
     # Compute the SVD of A
     _, d, vt = np.linalg.svd(A)
     i = np.argmin(d)
-    h = vt[i]  # TODO: Or is it vt[:,i]?
+    h = vt[i] 
 
     # Form a square matrix H
     if len(h) < 4:
@@ -1429,6 +1429,7 @@ class Sim:
 
         P1, P2, newpoints = ground_truth_reconstruction(P1, P2, gc_points, rc_points, points_triangulated)
 
+
         return newpoints
 
         
@@ -1454,7 +1455,7 @@ def main():
     focal_length = 50e-3  # focal length of camera 1 (m)
     pixel_size = 3.9e-6  # linear dimension of a pixel (m)
     point3D = np.array([[0, 0, 50]])
-    camera2centre = np.array([0, 0, 0])
+    camera2centre = np.array([5, 5, 0])
 
     Cam1 = Camera(cameracentre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
