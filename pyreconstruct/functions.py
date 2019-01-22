@@ -36,8 +36,9 @@ def decomposeCameraMtx(p):
     # first obtain camera centre...
     # SVD of P, but needs square matrix so add a row of zeros.
     P = np.r_[p, np.zeros((1, 4))]
-    u, d, vt = np.linalg.svd(P)
-    assert np.allclose(u @ np.diag(d) @ vt, P), "SVD of P has not worked correctly..."
+    _, d, vt = np.linalg.svd(P)
+
+    # assert np.allclose(u @ np.diag(d) @ vt, P), "SVD of P has not worked correctly..."
     assert np.argmin(d) == len(d) - 1, "The diagonals are not in decreasing size order..."
     # Then the camera centre is the last column of V
     x = vt[-1][0] / vt[-1][-1]
@@ -103,7 +104,7 @@ def depth(P, X):
 
     T = X[-1]
     M = P[:3, :3]  # 3x3 left hand submatrix
-    p4 = P[:, -1]  # last column of p
+    # p4 = P[:, -1]  # last column of p
 
     # now P(x, y, z, 1)^T = w(x,y,1)^T
     x = P @ X
@@ -565,8 +566,8 @@ def getRotationMatrices(e1, e2):
     """Given two epipoles e1 = (e11, e12, e13)^T and 
     e2 = (e21, e22, e23)^T, return rotation matrices R
     and R' such that Re1 = (1, 0, e13)^t and Re2 = (1,0,e23)^T)."""
-    e11, e12, e13 = e1.ravel()
-    e21, e22, e23 = e2.ravel()
+    e11, e12, _ = e1.ravel()
+    e21, e22, _ = e2.ravel()
 
     R1 = np.array([[e11, e12, 0], [-e12, e11, 0], [0, 0, 1]])
     R2 = np.array([[e21, e22, 0], [-e22, e21, 0], [0, 0, 1]])
@@ -590,7 +591,7 @@ def formPolynomial(e1, e2, F):
     # extract parameters from epipoles and matrix F
     f = e1[2]    # f
     g = e2[2]    # f' in literature
-    F_11, F_12, F_13, F_21, F_22, F_23, F_31, F_32, F_33 = F.ravel()    # could be optimised by only getting necessary values.
+    _, _, _, _, F_22, F_23, _, F_32, F_33 = F.ravel()  
     a, b, c, d = F_22, F_23, F_32, F_33
 
     return a, b, c, d, f, g
@@ -693,14 +694,7 @@ def find3DPoint(A):
     
     SVD of A = UDV \n
     X is the last column of V"""
-
-    # print("A = ", A.shape, "matrix")
-    u, d, v = np.linalg.svd(A)
-    D = np.diag(d)
-
-    X = v[:,-1]  # in homogeneous coordinates
-
-    return v[:,-1]
+    return right_null_space(A).reshape(4,1)
 
 def homogeneous2Inhomogeneous(X):
     """Convert homogeneous coordinate [x1, x2, x3, ..., xn] to \ninhomogeneous coordinate
@@ -787,12 +781,12 @@ def solveFundamentalMatrix(A):
     Return F, the matrix form of 9-vector f. '''
     # Find right null space of A (use SVD)
     F = right_null_space(A)
-    # now we need to constrain that det(F)=0, need unique solution! 
-
+    
+    # Now we need to constrain that det(F)=0, need unique solution! 
     # Take SVD of F
     u, d, v = np.linalg.svd(F)
 
-    # check d = diag(r,s,t), with r >= s >= t. 
+    # Check d = diag(r,s,t), with r >= s >= t. 
     assert d[0] >= d[1], "The SVD of F has produced a D = diag(r,s,t) where the contraints r >= s >= t have NOT been met..."
     assert d[1] >= d[2], "The SVD of F has produced a D = diag(r,s,t) where the contraints r >= s >= t have NOT been met..."
 
@@ -1140,7 +1134,7 @@ def DLT(X1, X2):
 
     Hnew = np.linalg.inv(T2) @ H @ T1
 
-    print(A @ Hnew.reshape(16,1))
+    # print(A @ Hnew.reshape(16,1))
 
     return Hnew
 
@@ -1370,7 +1364,7 @@ class Sim:
 
         # Pick the ground control (euclidean) points, and their indexes within the 
         # reconstructed points
-        gc_points, indexes = pickGroundTruthPoints(seenpoints, no_ground_truths=10)
+        gc_points, indexes = pickGroundTruthPoints(seenpoints, no_ground_truths=15)
 
         # make a new array to store the reconstructed versions of those 
         # euclidean known points... 
@@ -1442,7 +1436,7 @@ def main():
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     for point in points_triangulated:
-        x,y,z = homogeneous2Inhomogeneous(point)
+        x, y, z = homogeneous2Inhomogeneous(point)
 
         ax.scatter(x, y, z)
 
@@ -1451,7 +1445,7 @@ def main():
         ax.scatter(x,y,z, c="k", alpha=0.2)
 
 
-    # plt.show()
+    plt.show()
 
 
 if __name__ == "__main__":
