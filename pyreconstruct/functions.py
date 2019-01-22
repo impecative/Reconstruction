@@ -528,23 +528,16 @@ def translateFundamentalMatrix(F, T1, T2):
     return np.linalg.multi_dot([T2inv.T, F, T1inv])
 
 def findEpipoles(F):
-    """Find the right and left epipoles e1 and e2 such that 
-    e'.T F = 0 and F e = 0. Return normalsed epipoles..."""
-    F_11, F_12, F_13, F_21, F_22, F_23, F_31, F_32, F_33 = F.ravel()
+    """
+    Find the right and left epipoles e1 and e2 such that 
+    e'.T F = 0 and F e = 0. 
+    
+    Return normalsed epipoles...
+    """
 
-    # first require e2.T dot F = 0  # force solution not (0,0,0) by setting e3 = 1 
-    # ... This setting is "undone" by normalisation anyway...
-    a = np.array([[F_11, F_21, F_31], [F_12, F_22, F_32], [F_13, F_23, F_33], [0, 0, 1]])
-    b = np.array([0, 0, 0, 1])
-
-    e2 = np.linalg.lstsq(a,b, rcond=None)[0]
-
-
-    # next require F dot e1 = 0
-    a = np.array([[F_11, F_12, F_13], [F_21, F_22, F_23], [F_31, F_32, F_33], [0,0,1]])
-    b = np.array([0, 0, 0, 1])
-
-    e1 = np.linalg.lstsq(a,b, rcond=None)[0]
+    # e1 is the right null-space of F, , so use SVD. 
+    e1 = right_null_space(F)
+    e2 = left_null_space(F).T
 
     assert np.isclose(np.linalg.norm(np.matmul(e2.T, F)), 0), "First epipole DOESN'T satisfy the epipolar constraint"
     assert np.isclose(np.linalg.norm(np.matmul(F, e1)), 0), "Second epipole DOESN'T satisfy the epipolar constraint" 
@@ -868,6 +861,10 @@ def cameraMatrices(img1_points, img2_points):
     return p1, p2, F
 
 def estimate3DPoints(img1_points, img2_points):
+    """
+    Use the optimal triangulation algorithm (12.1, p. 318), to 
+    """
+    
     img1coords = img1_points
     img2coords = img2_points
 
@@ -918,6 +915,9 @@ def estimate3DPoints(img1_points, img2_points):
         # find the roots of the polynomial and check find the value of t that
         # minimises the cost function
         roots = solvePolynomial(a,b,c,d,f,g)
+
+        print(newF)
+
         tmin = evaluateCostFunction(roots, a, b, c, d, f, g)
 
         # find the optimal translated points
@@ -933,6 +933,48 @@ def estimate3DPoints(img1_points, img2_points):
         points3D[i] = X
     
     return points3D
+
+def optimal_triangulation(img1coords, img2coords, F):
+    """
+    Use the optimal triangulation algorithm (12.1, p. 318), to compute
+    the optimal 3D points corresponding to the matched image coordinates
+    of camera 1 and camera 2 and fundamental matrix F. 
+
+    Parameters: 
+    img1coords : numpy array of homogeneous 3-vectors of the image \
+                 coordinates in image 1.
+    img2coords : numpy array of homogeneous 3-vectors of the image \
+                 coordinate in image 2. 
+    F : 3 x 3 numpy matrix, the optimal fundamental matrix pre-computed \
+    from n >= 8 point correspondences in image 1 and 2.  
+
+    Return: np.array of inhomogeneous 3D points corresponding to the \
+            img1 and img2 coordinates.
+    """
+    # Make array to store the reconstructed 3D positions...
+    triangulated_points = np.zeros((len(img1coords),3))
+    p1, p2 = findCameras(F) # compute set of cameras corresponding to F
+
+    # Compute the optimal point correspondences that minimise geometric error
+    for i in range(len(img1coords)):
+        T1, T2 = getTransformationMatrices(img1coords[i], img2coords[i])
+        newF = translateFundamentalMatrix(F, T1, T2)
+        e1, e2 = findEpipoles(newF)
+        R1, R2 = getRotationMatrices(e1, e2)
+        newF = rotateFundamentalMatrix(newF, R1, R2)
+        formPolynomial(e1, e2, newF)
+        a,b,c,d,f,g = formPolynomial(e1, e2, newF)
+        roots = solvePolynomial(a,b,c,d,f,g)
+        tmin = evaluateCostFunction(roots, a,b,c,d,f,g)
+        x1, x2 = findModelPoints(tmin,a,b,c,d,f,g)  # These are the corrected point correspondences
+        newx1, newx2 = findOriginalCoordinates(R1, R2, T1, T2, x1, x2) # transform back to original coordinates.
+
+        # newx1 and newx2 are the optimal point correspondences! 
+        # Now use homogeneous triangulation method to compute 3D point.
+        X = triangulate(newx1, newx2, p1, p2)
+        triangulated_points[i] = X
+    
+    return triangulated_points 
 
 def centroid3d(array_of_points):
     """
@@ -1182,10 +1224,30 @@ def right_null_space(A):
     h = vt[i]  # TODO: Or is it vt[:,i]?
 
     # Form a square matrix H
+    if len(h) < 4:
+        return h
     H = h.reshape(int(np.sqrt(len(h))), int(np.sqrt(len(h))))
 
     return H
 
+def left_null_space(A):
+    """
+    Compute the left null space of matrix A, corresponding to vector h \
+    satisfying hA=0 under the condition that ||h||=1. 
+
+    Return 
+    """
+    m, n = A.shape
+    
+    # Ensure that A has at least as many rows as columns...
+    while n > m:
+        A = np.r_[A, np.zeros((1,n))]
+
+    u, d, _ = np.linalg.svd(A)
+    i = np.argmin(d)
+    f = u[:,i]   # i-th column of u 
+
+    return f
 
 class Camera:
     """
@@ -1344,19 +1406,9 @@ class Sim:
         # derive camera matrices
         P1, P2, F = cameraMatrices(img1coords, img2coords)
 
-        # decompose the camera matrix to find camera parameters
-        K1, R1, C1 = decomposeCameraMtx(P1)
-        K2, R2, C2 = decomposeCameraMtx(P2)
+        # TODO: USE THE OPTIMAL TRIANGULATION ALGORITHM!!!
 
-        # create array to store 3D coordinates of triangulated points
-        points_triangulated = np.zeros((len(img1coords), 3)) # Inhomogeneous 3-vector
-
-        for i in range(len(points_triangulated)):
-            x1, x2 = img1coords[i], img2coords[i]
-
-            # back project image points to 3D point X, using camera matrices P1 and P2
-            X = triangulate(x1, x2, P1, P2)
-            points_triangulated[i] = X
+        points_triangulated = optimal_triangulation(img1coords, img2coords, F)
 
         # Now we need to fix the projective ambiguity... 
         # Use ground control truth method...

@@ -458,6 +458,8 @@ def main():
     ax.set_zlabel("z")
     plt.show()
 
+    print("img1coords shape and type : ", img1coords.shape, type(img1coords))
+
     points3D = estimate3DPoints(img1coords, img2coords)
 
     xs, ys, zs = points3D[:,0], points3D[:,1], points3D[:,2]
