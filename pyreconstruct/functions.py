@@ -1,4 +1,4 @@
-from __future__ import division, print_function
+from __future__ import division, print_function  # Python 2 compatibility
 import numpy as np
 import scipy as sp
 import scipy.linalg
@@ -1498,6 +1498,13 @@ def main():
     for point in seenpoints:
         x, y, z = point
         ax.scatter(x,y,z, c="k", alpha=0.2)
+
+    # create animated gif of reconstruction...
+    # angles = np.linspace(0, 360, 26)[:-1]  # A list of 25 angles between 0 and 360
+    # # create an animated .gif
+    # for ii in range(0,360,10):
+    #     ax.view_init(elev=10., azim=ii)
+    #     plt.savefig("pics/movie{}.png".format(ii))
 
 
     plt.show()
