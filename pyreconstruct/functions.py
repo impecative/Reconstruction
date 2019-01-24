@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 random.seed(10)  # this should remain constant for testing, remove for true random distribution
 
 # __author__ = "Alex Elliott"
-# __version__ = "0.01"
+# __version__ = "0.02"
 
 def skew(V):
     '''Form a skew symmetric matrix from 3-vector V'''
@@ -774,7 +774,6 @@ def solveFundamentalMatrix(A):
     Return F, the matrix form of 9-vector f. '''
     # Find right null space of A (use SVD)
     F = right_null_space(A)
-    print("rank of uncorrected F is {}".format(np.linalg.matrix_rank(F)))
     
     # Now we need to constrain that det(F)=0, need unique solution! 
     # Take SVD of F
@@ -789,6 +788,9 @@ def solveFundamentalMatrix(A):
     D = np.diag([r, s, 0])
 
     newF = u @ D @ v
+
+    d= np.linalg.svd(newF, compute_uv=False)
+    print("Diagonal elements of newF are : ", d)
 
     # print("F = ", newF)
 
@@ -1416,7 +1418,7 @@ class Sim:
 
         # Pick the ground control (euclidean) points, and their indexes within the 
         # reconstructed points
-        gc_points, indexes = pickGroundTruthPoints(seenpoints, no_ground_truths=15)
+        gc_points, indexes = pickGroundTruthPoints(seenpoints, no_ground_truths=5)
 
         # make a new array to store the reconstructed versions of those 
         # euclidean known points... 
@@ -1454,8 +1456,8 @@ def main():
     sensor_width, sensor_height = 23.5e-3, 15.6e-3  # sensor dimensions of first camera (m)
     focal_length = 50e-3  # focal length of camera 1 (m)
     pixel_size = 3.9e-6  # linear dimension of a pixel (m)
-    point3D = np.array([[0, 0, 50]])
-    camera2centre = np.array([5, 5, 0])
+    # point3D = np.array([[0, 0, 50]])
+    camera2centre = np.array([0, 0, 0])
 
     Cam1 = Camera(cameracentre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
