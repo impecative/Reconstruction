@@ -569,7 +569,7 @@ def getRotationMatrices(e1, e2):
 
 def rotateFundamentalMatrix(F, R1, R2):
     """Replace matrix F with (R2 F R1.T)"""
-    return np.linalg.multi_dot([R2, F, R1.T])
+    return R2 @ F @ R1.T
 
 def g(t, f1, f2, a, b, c, d):
     term1 = t*((a*t+b)**2 + f2**2*(c*t + d)**2)**2
@@ -581,6 +581,9 @@ def formPolynomial(e1, e2, F):
     """Given two epipoles e1=(e11,e12,e13)^T and 
     e2=(e21, e22, e23)^T and fundamental matrix F, 
     form polynomial g(t)... """
+    print("e1 is ", e1)
+    print("e2 is ", e2)
+    # print("F = ", F)
     # extract parameters from epipoles and matrix F
     f = e1[2]    # f
     g = e2[2]    # f' in literature
@@ -1264,7 +1267,6 @@ class Camera:
         self.sensor_height = sensor_height
         self.pixel_size = pixel_size
 
-
 class Sim:
     """
     Simulation class, for the simulation of reconstruction algorithms. 
@@ -1457,7 +1459,7 @@ def main():
     focal_length = 50e-3  # focal length of camera 1 (m)
     pixel_size = 3.9e-6  # linear dimension of a pixel (m)
     # point3D = np.array([[0, 0, 50]])
-    camera2centre = np.array([0, 0, 0])
+    camera2centre = np.array([5, 5, 5])
 
     Cam1 = Camera(cameracentre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
@@ -1465,7 +1467,7 @@ def main():
     Cam2 = Camera(camera2centre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
 
-    sim = Sim(200, Cam1, Cam2, yaw=0, pitch=-12, roll=0)
+    sim = Sim(100, Cam1, Cam2, yaw=0, pitch=-12, roll=0)
 
     x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
