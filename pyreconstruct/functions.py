@@ -519,13 +519,13 @@ def getTransformationMatrices(coordinate1, coordinate2):
     T1 = np.array([[1, 0, -x1Translation], [0, 1, -y1Translation], [0, 0, 1]])
     T2 = np.array([[1, 0, -x2Translation], [0, 1, -y2Translation], [0, 0, 1]])
 
+    # print(T2 @ coordinate2) # testcase, should yield (0,0,1) origin...
+
     return T1, T2
 
 def translateFundamentalMatrix(F, T1, T2):
     """Replace matrix F with transpose(inv(T2)) F inv(T1)."""
-    T2inv = np.linalg.inv(T2)
-    T1inv = np.linalg.inv(T1)
-    return np.linalg.multi_dot([T2inv.T, F, T1inv])
+    return np.linalg.inv(T2).T @ F @ np.linalg.inv(T1)
 
 def findEpipoles(F):
     """
@@ -538,22 +538,38 @@ def findEpipoles(F):
     # e1 is the right null-space of F, e2.T is left null space, so use SVD. 
     e1 = right_null_space(F)
     e2 = left_null_space(F).T
+    E2 = right_null_space(F.T)
+
+    e1 = sp.linalg.null_space(F)[:,0]
+    e2 = sp.linalg.null_space(F.T)[:,0]
+
+    # print(F)
+
+    # print(np.allclose(F.T @ E2, 0), np.allclose(e2.T @ F, 0))
+
+    print(e1, e2)
+    
 
     assert np.isclose(np.linalg.norm(np.matmul(e2.T, F)), 0), "First epipole DOESN'T satisfy the epipolar constraint"
     assert np.isclose(np.linalg.norm(np.matmul(F, e1)), 0), "Second epipole DOESN'T satisfy the epipolar constraint" 
 
+    # print(F @ e1)
     # print("e1 is ", e1)
     # print("e2 is ", e2)
+    # print("E2 is ", E2, "\n")
 
     # normalise the epipoles such that (e11**2 + e12**2 = 1, and e21**2 + e22**2 = 1)
     scaleFactor1 = 1/(e1[0]**2 + e1[1]**2)**.5
     scaleFactor2 = 1/(e2[0]**2 + e2[1]**2)**.5
+    scaleFactor3 = 1/(E2[0]**2 + E2[1]**2)**.5
+
+    newE2 = scaleFactor3*E2
 
     # print("The scale factors for the epipoles are: {} and {}".format(scaleFactor1, scaleFactor2))
 
     newe1, newe2 = scaleFactor1*e1, scaleFactor2*e2
 
-    return newe1, newe2
+    return newe1, newE2
 
 def getRotationMatrices(e1, e2):
     """Given two epipoles e1 = (e11, e12, e13)^T and 
@@ -565,11 +581,46 @@ def getRotationMatrices(e1, e2):
     R1 = np.array([[e11, e12, 0], [-e12, e11, 0], [0, 0, 1]])
     R2 = np.array([[e21, e22, 0], [-e22, e21, 0], [0, 0, 1]])
 
+    # print(np.isclose((R1 @ e1)[0], 1))
+
+    # assert np.isclose(R2 @ e2, (1, 0, e2[2])), "R2 doesn't give the required R @ e2 = (1, 0, e2_3)"
+    # assert np.isclose(R1 @ e1, (1, 0, e1[2])), "R1 doesn't give the required R @ e1 = (1, 0, e1_3)"
+
     return R1, R2
 
 def rotateFundamentalMatrix(F, R1, R2):
     """Replace matrix F with (R2 F R1.T)"""
     return R2 @ F @ R1.T
+
+def test_form_of_F(F, newe1, newe2):
+    a, b, c, d = F[1,1], F[1,2], F[2,1], F[2,2]
+    f, g = newe1[2], newe2[2]
+
+    print("F is: \n", F)
+    theory = np.array([[f*g*d, -g*c, -g*d], [-f*b, a, b], [-f*d, c, d]])
+
+    print("F should be: \n", theory)
+
+    wrong = 0
+    if not np.isclose(f*g*d, F[0,0]):
+        print("F[0,0] isn't correct form")
+        wrong += 1
+    if not np.isclose(-g*c, F[0,1]):
+        print("F[0,1] isn't correct form")
+        wrong += 1
+    if not np.isclose(-g*d, F[0,2]):
+        print("F[0,2] isn't correct form")
+        wrong += 1
+    if not np.isclose(-f*b, F[1,0]):
+        print("F[1,0] isn't correct form")
+        wrong += 1
+    if not np.isclose(-f*d, F[2,0]):
+        print("F[2,0] isn't correct form")
+        print("F[2,0] is {}, should be {}".format(F[2,0], -f*d))
+        wrong += 1
+
+    # print("Failed on {}/5 elements of matrix F".format(wrong))
+    return None
 
 def g(t, f1, f2, a, b, c, d):
     term1 = t*((a*t+b)**2 + f2**2*(c*t + d)**2)**2
@@ -581,8 +632,8 @@ def formPolynomial(e1, e2, F):
     """Given two epipoles e1=(e11,e12,e13)^T and 
     e2=(e21, e22, e23)^T and fundamental matrix F, 
     form polynomial g(t)... """
-    print("e1 is ", e1)
-    print("e2 is ", e2)
+    # print("e1 is ", e1)
+    # print("e2 is ", e2)
     # print("F = ", F)
     # extract parameters from epipoles and matrix F
     f = e1[2]    # f
@@ -966,6 +1017,9 @@ def optimal_triangulation(img1coords, img2coords, F):
         newF = translateFundamentalMatrix(F, T1, T2)
         e1, e2 = findEpipoles(newF)
         R1, R2 = getRotationMatrices(e1, e2)
+        newe1, newe2 = R1@e1, R2@e2
+        # print(newe1, newe2)
+        test_form_of_F(newF, newe1, newe2)
         newF = rotateFundamentalMatrix(newF, R1, R2)
         formPolynomial(e1, e2, newF)
         a,b,c,d,f,g = formPolynomial(e1, e2, newF)
@@ -1509,7 +1563,7 @@ def main():
     #     plt.savefig("pics/movie{}.png".format(ii))
 
 
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":
