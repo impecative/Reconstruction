@@ -581,10 +581,8 @@ def getRotationMatrices(e1, e2):
     R1 = np.array([[e11, e12, 0], [-e12, e11, 0], [0, 0, 1]])
     R2 = np.array([[e21, e22, 0], [-e22, e21, 0], [0, 0, 1]])
 
-    # print(np.isclose((R1 @ e1)[0], 1))
-
-    # assert np.isclose(R2 @ e2, (1, 0, e2[2])), "R2 doesn't give the required R @ e2 = (1, 0, e2_3)"
-    # assert np.isclose(R1 @ e1, (1, 0, e1[2])), "R1 doesn't give the required R @ e1 = (1, 0, e1_3)"
+    assert np.allclose(R2 @ e2, np.array([1, 0, e2[2]])), "R2 doesn't give the required R @ e2 = (1, 0, e2_3)"
+    assert np.allclose(R1 @ e1, np.array([1, 0, e1[2]])), "R1 doesn't give the required R @ e1 = (1, 0, e1_3)"
 
     return R1, R2
 
@@ -817,7 +815,7 @@ def formMatrixA(arr_of_imgpoints1, arr_of_imgpoints2):
         col5.append(y2*y1)
         col6.append(y2)
         col7.append(x1)
-        col8.append(x1)
+        col8.append(y1)
     
     A[:,0], A[:,1], A[:,2], A[:,3], A[:,4],A[:,5], A[:,6], A[:,7]  = col1, col2, col3, col4, col5, col6, col7, col8
 
@@ -1464,6 +1462,7 @@ class Sim:
         # derive camera matrices
         P1, P2, F = cameraMatrices(img1coords, img2coords)
 
+
         # TODO: USE THE OPTIMAL TRIANGULATION ALGORITHM!!!
 
         points_triangulated = optimal_triangulation(img1coords, img2coords, F)
@@ -1563,7 +1562,7 @@ def main():
     #     plt.savefig("pics/movie{}.png".format(ii))
 
 
-    # plt.show()
+    plt.show()
 
 
 if __name__ == "__main__":

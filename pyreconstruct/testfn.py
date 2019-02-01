@@ -583,8 +583,8 @@ def getRotationMatrices(e1, e2):
 
     # print(np.isclose((R1 @ e1)[0], 1))
 
-    # assert np.isclose(R2 @ e2, (1, 0, e2[2])), "R2 doesn't give the required R @ e2 = (1, 0, e2_3)"
-    # assert np.isclose(R1 @ e1, (1, 0, e1[2])), "R1 doesn't give the required R @ e1 = (1, 0, e1_3)"
+    assert np.isclose(R2 @ e2, np.array([1, 0, e2[2]])), "R2 doesn't give the required R @ e2 = (1, 0, e2_3)"
+    assert np.isclose(R1 @ e1, np.array([1, 0, e1[2]])), "R1 doesn't give the required R @ e1 = (1, 0, e1_3)"
 
     return R1, R2
 
@@ -817,7 +817,7 @@ def formMatrixA(arr_of_imgpoints1, arr_of_imgpoints2):
         col5.append(y2*y1)
         col6.append(y2)
         col7.append(x1)
-        col8.append(x1)
+        col8.append(y1)
     
     A[:,0], A[:,1], A[:,2], A[:,3], A[:,4],A[:,5], A[:,6], A[:,7]  = col1, col2, col3, col4, col5, col6, col7, col8
 
@@ -844,13 +844,14 @@ def solveFundamentalMatrix(A):
     newF = u @ D @ v
 
     d= np.linalg.svd(newF, compute_uv=False)
-    print("Diagonal elements of newF are : ", d)
+    # print("Diagonal elements of newF are : ", d)
 
     # print("F = ", newF)
 
-    print("F has rank({})".format(np.linalg.matrix_rank(newF)))
+    # print("F has rank({})".format(np.linalg.matrix_rank(newF)))
 
     assert np.linalg.matrix_rank(newF) == 2, "Computed F has rank({}), the correct F should have rank(2)...".format(np.linalg.matrix_rank(newF))
+    assert np.isclose(np.linalg.det(newF), 0), "Computed F is not singular, i.e det(F) != 0..."
     return newF
 
 def getOriginalFundamentalMatrix(F, T1, T2):
@@ -911,6 +912,16 @@ def cameraMatrices(img1_points, img2_points):
     newF = solveFundamentalMatrix(A)
 
     F = getOriginalFundamentalMatrix(newF, T1, T2)
+
+    # # TESTCASE, remove if heavy...
+    # true = 0
+    # for i in range(len(img1coords)):
+    #     if np.isclose(img2coords[i] @ F @ img1coords[i], 0):
+    #         true += 1
+    #     else:
+    #         pass
+
+    # assert true == len(img1coords), "The equation x'Fx=0 did not hold for all x', x"
 
     p1, p2 = findCameras(F)
 
@@ -1529,41 +1540,29 @@ def main():
 
     sim.scene3D()
 
-    # sim.seenpoints3D(seenpoints)
-    # sim.testPoint(np.array([0,0,1]))
-    # sim.testPoint(np.array([0,0,2]))
-    # sim.testPoint(np.array([0,0,5e5]))
+    x1, x2 = convert_to_array(x1s, y1s, x2s, y2s)  # these are homogenous points
 
-    # points = sim.returnPoints()
+    # print(x1, x2)
 
-    # print("3D point is at: ", points)
+    A = formMatrixA(x1, x2)
+    print(A.shape)
 
-    points_triangulated = sim.reconstruction()
-    # print(points_triangulated[:10])
-    # print(seenpoints[:10])
+    p1, p2, F = cameraMatrices(x1, x2)
 
+    f = F.reshape(9,1)
+    print("Does Af = 0? ", np.allclose(A@f, 0))
 
+    true = 0
+    for i in range(len(x1)):
+        if np.isclose(x2[i] @ F @ x1[i], 0):
+            true += 1
+        else:
+            pass
+        
+    print("x'Fx is true for {}/{} tests...".format(true, len(x1)))
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    for point in points_triangulated:
-        x, y, z = homogeneous2Inhomogeneous(point)
-
-        ax.scatter(x, y, z)
-
-    for point in seenpoints:
-        x, y, z = point
-        ax.scatter(x,y,z, c="k", alpha=0.2)
-
-    # create animated gif of reconstruction...
-    # angles = np.linspace(0, 360, 26)[:-1]  # A list of 25 angles between 0 and 360
-    # # create an animated .gif
-    # for ii in range(0,360,10):
-    #     ax.view_init(elev=10., azim=ii)
-    #     plt.savefig("pics/movie{}.png".format(ii))
-
-
-    # plt.show()
+    print("rank(F) = ", np.linalg.matrix_rank(F))
+    print("det(F) = ", np.linalg.det(F))
 
 
 if __name__ == "__main__":
