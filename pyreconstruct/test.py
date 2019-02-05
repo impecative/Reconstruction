@@ -321,6 +321,7 @@ def fixImgCoords(imgx, imgy, sensor_width, sensor_height):
 
     # relative to the origin, the point is at position:
     return imgcoordinate - origin
+    # return np.array([imgx, imgy])
 
 def stereoImages(x1s, y1s, x2s, y2s, w1, w2, h1, h2):
     '''Input: Arrays or lists of corresponding x1, y1, x2, y2 coordinates,
@@ -598,10 +599,10 @@ def test_form_of_F(F, newe1, newe2):
     a, b, c, d = F[1,1], F[1,2], F[2,1], F[2,2]
     f, g = newe1[2], newe2[2]
 
-    print("F is: \n", F)
-    theory = np.array([[f*g*d, -g*c, -g*d], [-f*b, a, b], [-f*d, c, d]])
+    # print("F is: \n", F)
+    # theory = np.array([[f*g*d, -g*c, -g*d], [-f*b, a, b], [-f*d, c, d]])
 
-    print("F should be: \n", theory)
+    # print("F should be: \n", theory)
 
     wrong = 0
     if not np.isclose(f*g*d, F[0,0]):
@@ -800,6 +801,14 @@ def formMatrixA(arr_of_imgpoints1, arr_of_imgpoints2):
 
     assert len(arr_of_imgpoints1) == len(arr_of_imgpoints2), "The array of image points must be matching and the same length"
 
+    if len(arr_of_imgpoints1[0]) == 3:
+        true = 0
+        for i in range(len(arr_of_imgpoints1)):
+            if np.isclose(arr_of_imgpoints1[i][-1], 1) and np.isclose(arr_of_imgpoints2[i][-1], 1):
+                true += 1
+        
+        assert true == len(arr_of_imgpoints1), "Homogeneous coordinates not ending in 1!"
+
     A = np.zeros((len(arr_of_imgpoints1), 9))
     A[:,-1] = 1    # set the last column to all 1s
 
@@ -898,8 +907,10 @@ def findCameras(F):
 
 def cameraMatrices(img1_points, img2_points):
     """
-    Determine the camera matrices p1, p2 and the fundemental matrix 
-    relating image correspondences in image 1 and image 2.
+    Determine the camera matrices p1, p2 and the fundemental matrix \
+    relating image correspondences in image 1 and image 2. \
+    This carries out the normalised 8-point algorithm as in Hartley & \
+    Zisserman .
 
     Inputs:
     img1_points : np.array of image coordinates in first camera.
@@ -1041,8 +1052,6 @@ def optimal_triangulation(img1coords, img2coords, F):
     triangulated_points = np.zeros((len(img1coords),3))
     p1, p2 = findCameras(F) # compute set of cameras corresponding to F
 
-    print(findEpipoles(F))
-
     # Compute the optimal point correspondences that minimise geometric error
     for i in range(len(img1coords)):
         T1, T2 = getTransformationMatrices(img1coords[i], img2coords[i]) # transformation that takes back x1, x2 back to origin
@@ -1050,13 +1059,16 @@ def optimal_triangulation(img1coords, img2coords, F):
         e1, e2 = findEpipoles(newF)
         R1, R2 = getRotationMatrices(e1, e2)
         newF = rotateFundamentalMatrix(newF, R1, R2)
-        # test_form_of_F(newF, e1, e2)   # test the form of F
+        test_form_of_F(newF, e1, e2)   # test the form of F
         a,b,c,d,f,g = formPolynomial(e1, e2, newF)
         roots = solvePolynomial(a,b,c,d,f,g)
         tmin = evaluateCostFunction(roots, a,b,c,d,f,g)
         x1, x2 = findModelPoints(tmin,a,b,c,d,f,g)  # These are the corrected point correspondences
         newx1, newx2 = findOriginalCoordinates(R1, R2, T1, T2, x1, x2) # transform back to original coordinates.
         
+        # check that x'Fx = 0 still true for new optimal x1, x2
+        assert np.allclose(newx2.T @ F @ newx1, 0), "epipolar constraint failed with new optimal image coordinates"
+
         # print(np.allclose(homogeneous2Inhomogeneous(img2coords[i]), homogeneous2Inhomogeneous(newx2)))
         # newx1 and newx2 are the optimal point correspondences! 
         # Now use homogeneous triangulation method to compute 3D point.
@@ -1066,7 +1078,7 @@ def optimal_triangulation(img1coords, img2coords, F):
         # print("newx1 = P1 X ? ", np.allclose(homogeneous2Inhomogeneous(newx1), homogeneous2Inhomogeneous(p1 @ np.append(X, [1]))))
         # print("newx2 = P2 X ? ", np.allclose(homogeneous2Inhomogeneous(newx2), homogeneous2Inhomogeneous(p2 @ np.append(X, [1]))))
 
-        print("{} should roughly equal {}".format(homogeneous2Inhomogeneous(newx2), homogeneous2Inhomogeneous(p2 @ np.append(X, [1]))))
+        # print("{} should roughly equal {}".format(homogeneous2Inhomogeneous(newx2), homogeneous2Inhomogeneous(p2 @ np.append(X, [1]))))
         triangulated_points[i] = X
     
     return triangulated_points 
@@ -1228,19 +1240,19 @@ def ground_truth_reconstruction(P1, P2, X_Ei, X_i, all_projected_points):
 
     H = DLT(X_i, X_Ei)
 
-    print("Is X_Ei = H X_i? ")
+    # print("Is X_Ei = H X_i? ")
     true = 0
     for i in range(len(X_Ei)):
         X_measured = np.append(X_i[i], [1])
         X_actual = np.append(X_Ei[i], [1])
         # print(X_measured, X_actual)
-        print(H @ X_measured, X_actual)
-        if np.allclose(H @ X_measured, X_actual):
+        # print(homogeneous2Inhomogeneous(H @ X_measured), homogeneous2Inhomogeneous(X_actual))
+        if np.allclose(homogeneous2Inhomogeneous(H @ X_measured), homogeneous2Inhomogeneous(X_actual)):
             true += 1
         else:
             pass
     
-    print("True for {}/{} points".format(true, len(X_Ei)))
+    # print("True for {}/{} points".format(true, len(X_Ei)))
 
     # print("H = ", H)
     P1 = P1 @ np.linalg.inv(H)
@@ -1563,7 +1575,7 @@ def main():
     focal_length = 50e-3  # focal length of camera 1 (m)
     pixel_size = 3.9e-6  # linear dimension of a pixel (m)
     # point3D = np.array([[0, 0, 50]])
-    camera2centre = np.array([0, 0, 0])
+    camera2centre = np.array([50, 0, 0])
 
     Cam1 = Camera(cameracentre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
@@ -1571,7 +1583,7 @@ def main():
     Cam2 = Camera(camera2centre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
 
-    sim = Sim(100, Cam1, Cam2, yaw=0, pitch=0, roll=0)
+    sim = Sim(100, Cam1, Cam2, yaw=0, pitch=-45, roll=0)
 
     x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
@@ -1587,6 +1599,17 @@ def main():
     # print(A.shape)
 
     p1, p2, F = cameraMatrices(x1, x2)
+
+    m = p2[:,-1]
+    M = p2[:3,:3]
+
+    print("Is F = [m]x M as it should? ", np.allclose(F, skew(m) @ M))
+    print("F = ", F)
+    print("[m]x M = ", skew(m) @ M)
+
+    # print("p1 = ", p1)
+    # print("p2 = ", p2)
+    # print("F = ", F)
 
     f = F.reshape(9,1)
     print("Does Af = 0? ", np.allclose(A@f, 0))
@@ -1609,20 +1632,39 @@ def main():
 
     points_triangulated = optimal_triangulation(x1, x2, F)
 
+    gc_points, indexes = pickGroundTruthPoints(seenpoints, no_ground_truths=6)
+    rc_points = np.zeros((len(gc_points), 3))
+    for i in range(len(indexes)):
+            rc_points[i] = points_triangulated[indexes[i]]
+
+    P1, P2, newpoints = ground_truth_reconstruction(p1, p2, gc_points, rc_points, points_triangulated)
+
+    true1 = 0
+    true2 = 0
+    for i in range(len(x1)):
+        X = newpoints[i]
+        x_1, x_2 = x1[i], x2[i]
+        # print(homogeneous2Inhomogeneous(x_2), homogeneous2Inhomogeneous(P2 @ X))
+        if np.allclose(homogeneous2Inhomogeneous(x_1), homogeneous2Inhomogeneous(P1 @ X)):
+            true1 += 1
+        if np.allclose(homogeneous2Inhomogeneous(x_2), homogeneous2Inhomogeneous(P2 @ X)):
+            true2 += 1
+
+
     # Correct using ground truths, or calibrated cameras? 
 
     # print("This should be skew-symmetric: \n", p2.T @ F @ p1)
 
     # check if x = PX
-    true1 = 0
-    true2 = 0
-    for i in range(len(x1)):
-        X = points_triangulated[i]
-        x_1, x_2 = x1[i], x2[i]
-        if np.allclose(homogeneous2Inhomogeneous(x_1), homogeneous2Inhomogeneous(p1 @ np.append(X, [1]))):
-            true1 += 1
-        if np.allclose(homogeneous2Inhomogeneous(x_2), homogeneous2Inhomogeneous(p2 @ np.append(X, [1]))):
-            true2 += 1
+    # true1 = 0
+    # true2 = 0
+    # for i in range(len(x1)):
+    #     X = points_triangulated[i]
+    #     x_1, x_2 = x1[i], x2[i]
+    #     if np.allclose(homogeneous2Inhomogeneous(x_1), homogeneous2Inhomogeneous(p1 @ np.append(X, [1]))):
+    #         true1 += 1
+    #     if np.allclose(homogeneous2Inhomogeneous(x_2), homogeneous2Inhomogeneous(p2 @ np.append(X, [1]))):
+    #         true2 += 1
     
         # print("Are these equivalent?", homogeneous2Inhomogeneous(x_1), homogeneous2Inhomogeneous(p1 @ np.append(X, [1])))
         # print("Point mapped to image correctly in camera 1? ", np.allclose(homogeneous2Inhomogeneous(x_1), homogeneous2Inhomogeneous(p1 @ np.append(X, [1]))))
@@ -1633,14 +1675,22 @@ def main():
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-    for point in points_triangulated:
-        x, y, z = point
+    for point in newpoints:
+        x, y, z = homogeneous2Inhomogeneous(point)
 
         ax.scatter(x, y, z)
 
     for point in seenpoints:
         x, y, z = point
         ax.scatter(x,y,z, c="k", alpha=0.2)
+
+    # # create animated gif of reconstruction...
+    # angles = np.linspace(0, 360, 26)[:-1]  # A list of 25 angles between 0 and 360
+    # # create an animated .gif
+    # for ii in range(0,360,10):
+    #     ax.view_init(elev=10., azim=ii)
+    #     plt.savefig("pics/movie{}.png".format(ii))
+
 
     # plt.show()
 
