@@ -182,15 +182,29 @@ def point2plane2point(a, b, c, d, point3D, cameracentre):
 
     return x, y, z
 
-def RotationMatrix(yaw, pitch, roll):
+def R_x(angle, rad=False):
+    if not rad:   # convert to radians if in degrees
+        angle = np.deg2rad(angle)
+    return np.array([[1, 0, 0], [0, np.cos(angle), np.sin(angle)], [0, -np.sin(angle), np.cos(angle)]])
+
+def R_y(angle, rad=False):
+    if not rad:
+        angle = np.deg2rad(angle)
+    return np.array([[np.cos(angle), 0, -np.sin(angle)], [0, 1, 0], [np.sin(angle), 0, np.cos(angle)]])
+
+def R_z(angle, rad=False):
+    if not rad:
+        angle = np.deg2rad(angle)
+    return np.array([[np.cos(angle), np.sin(angle), 0], [-np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+
+
+def RotationMatrix(yaw, pitch, roll, rad=False):
     '''Form a rotation matrix to carry out specified yaw, pitch, roll rotation *in degrees*.'''
-    yaw, pitch, roll = np.radians(yaw), np.radians(pitch), np.radians(roll)
+    Rx = R_x(pitch, rad=rad)
+    Ry = R_y(yaw, rad=rad)
+    Rz = R_z(roll, rad=rad)
 
-    R_x = np.array([[1, 0, 0], [0, np.cos(roll), -np.sin(roll)], [0, np.sin(roll), np.cos(roll)]])
-    R_y = np.array([[np.cos(pitch), 0, np.sin(pitch)], [0, 1, 0], [-np.sin(pitch), 0, np.cos(pitch)]])
-    R_z = np.array([[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]])
-
-    R = np.linalg.multi_dot([R_z, R_y, R_x])
+    R = np.linalg.multi_dot([Rx, Ry, Rz])
 
     return R
 
@@ -1342,9 +1356,9 @@ class Sim:
 
         points = np.zeros((no_of_points, 3))
         for i in range(points.shape[0]):
-            points[i][0] = random.uniform(-10, 10)  # xs
-            points[i][1] = random.uniform(-10, 10)  # ys
-            points[i][2] = random.uniform(45, 55)  # zs
+            points[i][0] = random.uniform(-20, 20)  # xs
+            points[i][1] = random.uniform(-20, 20)  # ys
+            points[i][2] = random.uniform(30, 100)  # zs
 
         self.points3D = points
         self.w1 = Cam1.sensor_width
@@ -1512,7 +1526,7 @@ def main():
     focal_length = 50e-3  # focal length of camera 1 (m)
     pixel_size = 3.9e-6  # linear dimension of a pixel (m)
     # point3D = np.array([[0, 0, 50]])
-    camera2centre = np.array([5, 5, 5])
+    camera2centre = np.array([25, 0, 0])
 
     Cam1 = Camera(cameracentre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
@@ -1520,7 +1534,7 @@ def main():
     Cam2 = Camera(camera2centre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
 
-    sim = Sim(100, Cam1, Cam2, yaw=0, pitch=-12, roll=0)
+    sim = Sim(100, Cam1, Cam2, yaw=-10, pitch=0, roll=0)
 
     x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 

@@ -186,11 +186,13 @@ def point2plane2point(a, b, c, d, point3D, cameracentre):
 
 def RotationMatrix(yaw, pitch, roll, rad=False):
     '''Form a rotation matrix to carry out specified yaw, pitch, roll rotation *in degrees*.'''
-    Rx = R_x(pitch, rad=rad)
-    Ry = R_y(yaw, rad=rad)
-    Rz = R_z(roll, rad=rad)
+    yaw, pitch, roll = np.radians(yaw), np.radians(pitch), np.radians(roll)
 
-    R = np.linalg.multi_dot([Rx, Ry, Rz])
+    R_x = np.array([[1, 0, 0], [0, np.cos(roll), np.sin(roll)], [0, -np.sin(roll), np.cos(roll)]])
+    R_y = np.array([[np.cos(pitch), 0, -np.sin(pitch)], [0, 1, 0], [np.sin(pitch), 0, np.cos(pitch)]])
+    R_z = np.array([[np.cos(yaw), np.sin(yaw), 0], [-np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]])
+
+    R = np.linalg.multi_dot([R_z, R_y, R_x])
 
     return R
 
@@ -1853,9 +1855,9 @@ class Sim:
     __________________
     # TODO
     """
-    def __init__(self, no_of_points, Cam1, Cam2, yaw, pitch, roll, rad):
+    def __init__(self, no_of_points, Cam1, Cam2, yaw, pitch, roll):
         self.tvec = Cam2.centre - Cam1.centre
-        self.R = RotationMatrix(yaw, pitch, roll, rad=rad)
+        self.R = RotationMatrix(yaw, pitch, roll)
 
         points = np.zeros((no_of_points, 3))
         for i in range(points.shape[0]):
@@ -2030,7 +2032,7 @@ def main():
     Cam2 = Camera(camera2centre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
 
-    sim = Sim(100, Cam1, Cam2, yaw=0, pitch=0, roll=45, rad=False)
+    sim = Sim(100, Cam1, Cam2, yaw=-90, pitch=0, roll=0)
 
     x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
