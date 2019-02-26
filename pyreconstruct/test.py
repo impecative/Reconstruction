@@ -581,7 +581,7 @@ def R_x(angle, rad=False):
 def R_y(angle, rad=False):
     if not rad:
         angle = np.deg2rad(angle)
-    return np.array([[np.cos(angle), 0, -np.sin(angle)], [0, 1, 0], [np.sin(angle), 0, np.cos(angle)]])
+    return np.array([[np.cos(angle), 0, np.sin(angle)], [0, 1, 0], [-np.sin(angle), 0, np.cos(angle)]])
 
 def R_z(angle, rad=False):
     if not rad:
@@ -2030,7 +2030,7 @@ def main():
     Cam2 = Camera(camera2centre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
 
-    sim = Sim(100, Cam1, Cam2, yaw=0, pitch=0, roll=45, rad=False)
+    sim = Sim(100, Cam1, Cam2, yaw=45, pitch=0, roll=0, rad=False)
 
     x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
