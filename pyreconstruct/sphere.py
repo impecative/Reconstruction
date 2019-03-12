@@ -36,6 +36,8 @@ for i in range(len(thetas)):
 ax.scatter(np.sin(phis)*np.cos(thetas), np.sin(phis)*np.sin(thetas), np.cos(phis), c="r", s=3)
 ax.scatter(-np.sin(phis)*np.cos(thetas), -np.sin(phis)*np.sin(thetas), -np.cos(phis), c="b", s=3)
 
+ax.set_aspect('equal')
+
 ax.set_xlabel("x ")
 ax.set_ylabel("y ")
 ax.set_zlabel("z ")

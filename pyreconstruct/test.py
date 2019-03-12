@@ -356,6 +356,7 @@ def stereoImages(x1s, y1s, x2s, y2s, w1, w2, h1, h2):
     plt.xlabel("x-direction (pixels)")
 
     plt.suptitle("Points as Imaged by Two Stereo-Cameras")
+    fig.tight_layout()
     # plt.show()
 
 def draw3D(points3D, cameracentre1, cameracentre2, TL1, TR1, BR1, BL1, TL2, TR2, BR2, BL2, tvec, rot_matrix,
@@ -392,23 +393,23 @@ def draw3D(points3D, cameracentre1, cameracentre2, TL1, TR1, BR1, BL1, TL2, TR2,
     ax.scatter(cameracentre1[0], cameracentre1[1], cameracentre1[1], c="g", label="Camera 1 Centre")
     ax.scatter(cameracentre2[0], cameracentre2[1], cameracentre2[2], c="m", label="Camera 2 Centre")
     # plot the 3D positions of the projected CCD corners
-    ax.plot([prTL1[0], prTR1[0]], [prTL1[1], prTR1[1]], [prTL1[2], prTR1[2]], c="r", alpha=0.5, label="CCD Boundaries")
-    ax.plot([prTR1[0], prBL1[0]], [prTL1[1], prBL1[1]], [prTR1[2], prBL1[2]], c="r", alpha=0.5)
-    ax.plot([prBL1[0], prBR1[0]], [prBL1[1], prBR1[1]], [prBL1[2], prBR1[2]], c="r", alpha=0.5)
-    ax.plot([prTL1[0], prBR1[0]], [prTL1[1], prBR1[1]], [prTL1[2], prBR1[2]], c="r", alpha=0.5)
-    ax.plot([prTL1[0], cameracentre1[0]], [prTL1[1], cameracentre1[1]], [prTL1[2], cameracentre1[2]], c="y", alpha=0.5)
-    ax.plot([prTR1[0], cameracentre1[0]], [prTR1[1], cameracentre1[1]], [prTR1[2], cameracentre1[2]], c="y", alpha=0.5)
-    ax.plot([prBL1[0], cameracentre1[0]], [prBL1[1], cameracentre1[1]], [prBL1[2], cameracentre1[2]], c="y", alpha=0.5)
-    ax.plot([prBR1[0], cameracentre1[0]], [prBR1[1], cameracentre1[1]], [prBR1[2], cameracentre1[2]], c="y", alpha=0.5)
+    ax.plot((prTL1[0], prTR1[0]), (prTL1[1], prTR1[1]), (prTL1[2], prTR1[2]), c="r", alpha=0.5, label="CCD Boundaries")
+    ax.plot((prTR1[0], prBL1[0]), (prTL1[1], prBL1[1]), (prTR1[2], prBL1[2]), c="r", alpha=0.5)
+    ax.plot((prBL1[0], prBR1[0]), (prBL1[1], prBR1[1]), (prBL1[2], prBR1[2]), c="r", alpha=0.5)
+    ax.plot((prTL1[0], prBR1[0]), (prTL1[1], prBR1[1]), (prTL1[2], prBR1[2]), c="r", alpha=0.5)
+    ax.plot((prTL1[0], cameracentre1[0]), (prTL1[1], cameracentre1[1]), (prTL1[2], cameracentre1[2]), c="y", alpha=0.5)
+    ax.plot((prTR1[0], cameracentre1[0]), (prTR1[1], cameracentre1[1]), (prTR1[2], cameracentre1[2]), c="y", alpha=0.5)
+    ax.plot((prBL1[0], cameracentre1[0]), (prBL1[1], cameracentre1[1]), (prBL1[2], cameracentre1[2]), c="y", alpha=0.5)
+    ax.plot((prBR1[0], cameracentre1[0]), (prBR1[1], cameracentre1[1]), (prBR1[2], cameracentre1[2]), c="y", alpha=0.5)
 
-    ax.plot([prTL2[0], prTR2[0]], [prTL2[1], prTR2[1]], [prTL2[2], prTR2[2]], c="r", alpha=0.5)
-    ax.plot([prTR2[0], prBL2[0]], [prTL2[1], prBL2[1]], [prTR2[2], prBL2[2]], c="r", alpha=0.5)
-    ax.plot([prBL2[0], prBR2[0]], [prBL2[1], prBR2[1]], [prBL2[2], prBR2[2]], c="r", alpha=0.5)
-    ax.plot([prTL2[0], prBR2[0]], [prTL2[1], prBR2[1]], [prTL2[2], prBR2[2]], c="r", alpha=0.5)
-    ax.plot([prTL2[0], cameracentre2[0]], [prTL2[1], cameracentre2[1]], [prTL2[2], cameracentre2[2]], c="y", alpha=0.5)
-    ax.plot([prBL2[0], cameracentre2[0]], [prBL2[1], cameracentre2[1]], [prBL2[2], cameracentre2[2]], c="y", alpha=0.5)
-    ax.plot([prTR2[0], cameracentre2[0]], [prTR2[1], cameracentre2[1]], [prTR2[2], cameracentre2[2]], c="y", alpha=0.5)
-    ax.plot([prBR2[0], cameracentre2[0]], [prBR2[1], cameracentre2[1]], [prBR2[2], cameracentre2[2]], c="y", alpha=0.5)
+    ax.plot((prTL2[0], prTR2[0]), (prTL2[1], prTR2[1]), (prTL2[2], prTR2[2]), c="r", alpha=0.5)
+    ax.plot((prTR2[0], prBL2[0]), (prTL2[1], prBL2[1]), (prTR2[2], prBL2[2]), c="r", alpha=0.5)
+    ax.plot((prBL2[0], prBR2[0]), (prBL2[1], prBR2[1]), (prBL2[2], prBR2[2]), c="r", alpha=0.5)
+    ax.plot((prTL2[0], prBR2[0]), (prTL2[1], prBR2[1]), (prTL2[2], prBR2[2]), c="r", alpha=0.5)
+    ax.plot((prTL2[0], cameracentre2[0]), (prTL2[1], cameracentre2[1]), (prTL2[2], cameracentre2[2]), c="y", alpha=0.5)
+    ax.plot((prBL2[0], cameracentre2[0]), (prBL2[1], cameracentre2[1]), (prBL2[2], cameracentre2[2]), c="y", alpha=0.5)
+    ax.plot((prTR2[0], cameracentre2[0]), (prTR2[1], cameracentre2[1]), (prTR2[2], cameracentre2[2]), c="y", alpha=0.5)
+    ax.plot((prBR2[0], cameracentre2[0]), (prBR2[1], cameracentre2[1]), (prBR2[2], cameracentre2[2]), c="y", alpha=0.5)
 
     ax.legend()
     ax.axis("equal")
@@ -1549,6 +1550,7 @@ def functional_error(f, f_err, px, px_err, py, py_err, camera2_x,
     p1 = K @ R1 @ np.c_[np.eye(3), -np.zeros((3,1))]
     p2 = K @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
     imgpoint1, imgpoint2 = [u1, v1], [u2, v2]
+    
     mean_X = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2))
 
     p1f = np.array([[f+f_err, 0, px], [0,f+f_err, py], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
@@ -1663,7 +1665,6 @@ def nearest_neighbour_err(f, f_err, px, px_err, py, py_err, camera2_x,
 
     return errors
 
-
 def relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2):
     return np.sum(np.sqrt((triangulate(imgpoint1_cam1, imgpoint1_cam2, p1, p2) - 
                   triangulate(imgpoint2_cam1, imgpoint2_cam2, p1, p2))**2))
@@ -1737,6 +1738,11 @@ def nnd_err(f, f_err, px, px_err, py, py_err, camera2_x,
         imgpoint2_cam1 = homogeneous2Inhomogeneous(p1 @ antipoint)     # point 2 in first camera
         imgpoint1_cam2 = homogeneous2Inhomogeneous(p2 @ point)     # point 1 in second camera
         imgpoint2_cam2 = homogeneous2Inhomogeneous(p2 @ antipoint)     # point 2 in second camera
+
+        # imgpoint1_cam1 = imgpoint1_cam1[::-1]
+        # imgpoint2_cam1 = imgpoint2_cam1[::-1]
+        # imgpoint1_cam2 = imgpoint1_cam2[::-1]
+        # imgpoint2_cam2 = imgpoint2_cam2[::-1]
 
         # now work out fractional error for each of these
         r = np.sum(np.sqrt((triangulate(imgpoint1_cam1, imgpoint1_cam2, p1, p2) - triangulate(imgpoint2_cam1, imgpoint2_cam2, p1, p2))**2))
@@ -1859,9 +1865,9 @@ class Sim:
 
         points = np.zeros((no_of_points, 3))
         for i in range(points.shape[0]):
-            points[i][0] = random.uniform(-10, 10)  # xs
-            points[i][1] = random.uniform(-10, 10)  # ys
-            points[i][2] = random.uniform(45, 55)  # zs
+            points[i][0] = random.uniform(-100, 100)  # xs
+            points[i][1] = random.uniform(-100, 100)  # ys
+            points[i][2] = random.uniform(20, 100)  # zs
 
         self.points3D = points
         self.w1 = Cam1.sensor_width
@@ -2005,7 +2011,6 @@ class Sim:
 
         return newpoints
 
-
 def main():
     """# user input camera parameters:
     camcentre = input("Please Input Camera 2 Position (separated by commas): ")
@@ -2022,7 +2027,7 @@ def main():
     focal_length = 50e-3  # focal length of camera 1 (m)
     pixel_size = 3.9e-6  # linear dimension of a pixel (m)
     # point3D = np.array([[0, 0, 50]])
-    camera2centre = np.array([50, 0, 0])
+    camera2centre = np.array([25, 0, 0])
 
     Cam1 = Camera(cameracentre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
@@ -2030,7 +2035,7 @@ def main():
     Cam2 = Camera(camera2centre, focal_length, sensor_width, 
                   sensor_height, pixel_size)
 
-    sim = Sim(100, Cam1, Cam2, yaw=45, pitch=0, roll=0, rad=False)
+    sim = Sim(5000, Cam1, Cam2, yaw=-12, pitch=0, roll=0, rad=False)
 
     x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
@@ -2099,7 +2104,7 @@ def main():
     for i in range(len(x1)):
         X = newpoints[i]
         x_1, x_2 = x1[i], x2[i]
-        # print(homogeneous2Inhomogeneous(x_2), homogeneous2Inhomogeneous(P2 @ X))
+        print(homogeneous2Inhomogeneous(x_2)/homogeneous2Inhomogeneous(P2 @ X))
         if np.allclose(homogeneous2Inhomogeneous(x_1), homogeneous2Inhomogeneous(P1 @ X)):
             true1 += 1
         if np.allclose(homogeneous2Inhomogeneous(x_2), homogeneous2Inhomogeneous(P2 @ X)):
@@ -2180,7 +2185,7 @@ def test():
     Cam2 = Camera(centre2, f, 23.5e-3, 
                   15.6e-3, 6000/23.5e-3)
 
-    sim = Sim(300, Cam1, Cam2, yaw=0, pitch=-45, roll=0)
+    sim = Sim(300, Cam1, Cam2, yaw=0, pitch=-45, roll=0, rad=False)
 
     x1s, y1s, x2s, y2s, seenpoints = sim.synchImages()
 
@@ -2501,7 +2506,7 @@ def test2():
     test7 = 0
     for i in range(len(points)):
         img1 = homogeneous2Inhomogeneous(P1 @ points[i])
-        # print(img1, homogeneous2Inhomogeneous(img1coords[i]))
+        # print(img1/homogeneous2Inhomogeneous(img1coords[i]))
         img2 = homogeneous2Inhomogeneous(P2 @ points[i])
         if np.allclose(img1, homogeneous2Inhomogeneous(img1coords[i])):
             test6 += 1
@@ -2696,77 +2701,77 @@ def final():
     print('error from u2 ', alpha_img2x)
     print('error from v2 ', alpha_img2y)
 
-    # functional_error(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, roll, gamma_err, imgpoint1[0], imgpoint2[0], imgcoordx_err, imgpoint1[1], imgpoint2[1], imgcoordy_err)
+    functional_error(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, roll, gamma_err, imgpoint1[0], imgpoint2[0], imgcoordx_err, imgpoint1[1], imgpoint2[1], imgcoordy_err)
     
-    # vary_coordz = np.linspace(10, 110, 30)
-    # vary_coordxy = np.linspace(-50, 70, len(vary_coordz))
-    # errorsz = np.zeros((len(vary_coordz), 3))
-    # errorsx = np.zeros(errorsz.shape)
-    # errorsy = np.zeros(errorsz.shape)
+    vary_coordz = np.linspace(10, 110, 30)
+    vary_coordxy = np.linspace(-50, 70, len(vary_coordz))
+    errorsz = np.zeros((len(vary_coordz), 3))
+    errorsx = np.zeros(errorsz.shape)
+    errorsy = np.zeros(errorsz.shape)
 
-    # for i in range(len(vary_coordz)):
-    #     print("{}/{} complete...".format(i+1, len(vary_coordz)), flush=True)
-    #     errorsz[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
-    #                                     centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
-    #                                     roll, gamma_err, imgcoordx_err, imgcoordy_err, 
-    #                                     np.array([10, 0, vary_coordz[i]]), 1000)
-    #     errorsx[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
-    #                                     centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
-    #                                     roll, gamma_err, imgcoordx_err, imgcoordy_err, 
-    #                                     np.array([vary_coordxy[i], 0, 25]), 1000)
-    #     errorsy[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
-    #                                     centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
-    #                                     roll, gamma_err, imgcoordx_err, imgcoordy_err, 
-    #                                     np.array([0, vary_coordxy[i], 25]), 1000)
+    for i in range(len(vary_coordz)):
+        print("{}/{} complete...".format(i+1, len(vary_coordz)), flush=True)
+        errorsz[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
+                                        centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
+                                        roll, gamma_err, imgcoordx_err, imgcoordy_err, 
+                                        np.array([10, 0, vary_coordz[i]]), 1000)
+        errorsx[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
+                                        centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
+                                        roll, gamma_err, imgcoordx_err, imgcoordy_err, 
+                                        np.array([vary_coordxy[i], 0, 25]), 1000)
+        errorsy[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
+                                        centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
+                                        roll, gamma_err, imgcoordx_err, imgcoordy_err, 
+                                        np.array([0, vary_coordxy[i], 25]), 1000)
 
-    # # print(errors)
+    # print(errors)
 
-    # # plot graph of the error in the mean error in each coordinate with depth z
-    # fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
-    # axs[2].plot(vary_coordz, errorsz[:,0], "bx", ms=4)
-    # axs[1].plot(vary_coordz, errorsz[:,1], "bx", ms=4)
-    # axs[0].plot(vary_coordz, errorsz[:,2], "bx", ms=4)
+    # plot graph of the error in the mean error in each coordinate with depth z
+    fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
+    axs[2].plot(vary_coordz, errorsz[:,0], "bx", ms=4)
+    axs[1].plot(vary_coordz, errorsz[:,1], "bx", ms=4)
+    axs[0].plot(vary_coordz, errorsz[:,2], "bx", ms=4)
 
-    # axs[2].set_ylabel("x-error (m)")
-    # axs[1].set_ylabel("y-error (m)")
-    # axs[0].set_ylabel("z-error (m)")
+    axs[2].set_ylabel("x-error (m)")
+    axs[1].set_ylabel("y-error (m)")
+    axs[0].set_ylabel("z-error (m)")
 
-    # axs[2].set_xlabel("depth (m)")
-    # fig.tight_layout()
+    axs[2].set_xlabel("depth (m)")
+    fig.tight_layout()
 
-    # plt.suptitle("Mean coordinate error over many orientations at varying depth z")
+    plt.suptitle("Mean coordinate error over many orientations at varying depth z")
 
-    # # plot error with varying x-coord
-    # fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
-    # axs[2].plot(vary_coordxy, errorsx[:,0], "bx", ms=4)
-    # axs[1].plot(vary_coordxy, errorsx[:,1], "bx", ms=4)
-    # axs[0].plot(vary_coordxy, errorsx[:,2], "bx", ms=4)
+    # plot error with varying x-coord
+    fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
+    axs[2].plot(vary_coordxy, errorsx[:,0], "bx", ms=4)
+    axs[1].plot(vary_coordxy, errorsx[:,1], "bx", ms=4)
+    axs[0].plot(vary_coordxy, errorsx[:,2], "bx", ms=4)
 
-    # axs[2].set_ylabel("x-error (m)")
-    # axs[1].set_ylabel("y-error (m)")
-    # axs[0].set_ylabel("z-error (m)")
+    axs[2].set_ylabel("x-error (m)")
+    axs[1].set_ylabel("y-error (m)")
+    axs[0].set_ylabel("z-error (m)")
 
-    # axs[2].set_xlabel("x-position (m)")
+    axs[2].set_xlabel("x-position (m)")
 
-    # fig.tight_layout()
+    fig.tight_layout()
 
-    # plt.suptitle("Mean coordinate error over many orientations at varying x-position")
+    plt.suptitle("Mean coordinate error over many orientations at varying x-position")
 
-    # # plot error with varying y-coord
-    # fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
-    # axs[2].plot(vary_coordxy, errorsy[:,0], "bx", ms=4)
-    # axs[1].plot(vary_coordxy, errorsy[:,1], "bx", ms=4)
-    # axs[0].plot(vary_coordxy, errorsy[:,2], "bx", ms=4)
+    # plot error with varying y-coord
+    fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
+    axs[2].plot(vary_coordxy, errorsy[:,0], "bx", ms=4)
+    axs[1].plot(vary_coordxy, errorsy[:,1], "bx", ms=4)
+    axs[0].plot(vary_coordxy, errorsy[:,2], "bx", ms=4)
 
-    # axs[2].set_ylabel("x-error (m)")
-    # axs[1].set_ylabel("y-error (m)")
-    # axs[0].set_ylabel("z-error (m)")
+    axs[2].set_ylabel("x-error (m)")
+    axs[1].set_ylabel("y-error (m)")
+    axs[0].set_ylabel("z-error (m)")
 
-    # axs[2].set_xlabel("y-position (m)")
+    axs[2].set_xlabel("y-position (m)")
 
-    # plt.suptitle("Mean coordinate error over many orientations at varying y-position")
-    # fig.tight_layout()
-    # plt.show()
+    plt.suptitle("Mean coordinate error over many orientations at varying y-position")
+    fig.tight_layout()
+    plt.show()
 
 
 
@@ -2789,11 +2794,11 @@ def final():
 
     # print(point, triangulated_point)"""
 
-
 def fov():
     centre1 = np.array([0,0,0])   # Camera 1 centre (origin)
     centre2 = np.array([50,0,0])  # Camera 2 centre
-    R2 = RotationMatrix(yaw=-20, pitch=0, roll=0)   # Camera 2 orientation (compared to camera 1)
+    yaw, pitch, roll = 0, 0, 0
+    R2 = RotationMatrix(yaw=yaw, pitch=pitch, roll=roll)   # Camera 2 orientation (compared to camera 1)
     R1 = RotationMatrix(0,0,0)                      # Camera 1 orientation (none! )
     f = 50e-3                                       # Focal Length (m)
     m = 6000/23.5e-3                                # Pixels per unit length
@@ -2807,6 +2812,7 @@ def fov():
 
     p1 = K @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]       # Camera matrix 1
     p2 = K @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]       # Camera matrix 2
+
     f_error = 1e-3*m
     x_error = 1
     y_error = 1
@@ -2821,7 +2827,7 @@ def fov():
     imgcoordx_err = 3                       # Error in measured point in x-direction (pixels)
     imgcoordy_err = 3                       # Error in measured point in y-direction (pixels)
 
-    yaw, pitch, roll = -10, 0, 0
+    
 
     # vary x,y over all combinations of coordinates for -50 to 50.
     vals = np.linspace(-50, 70, 121)
@@ -2876,6 +2882,7 @@ def fov():
     plt.ylabel("y-position (m)")
     cbar.set_label('Absolute distance uncertainty (m)', rotation=270, labelpad=20)
     plt.suptitle(r"Total Uncertainty for varying $x,y$ position at fixed $z$=50 m")
+    plt.savefig('{}_convergence_angle.png'.format(yaw))
 
     # fig.tight_layout()
     plt.show()
@@ -2892,7 +2899,8 @@ def rel_dist():
 
     centre1 = np.array([0,0,0])   # Camera 1 centre (origin)
     centre2 = np.array([25,0,0])  # Camera 2 centre
-    R2 = RotationMatrix(yaw=-10, pitch=0, roll=0)   # Camera 2 orientation (compared to camera 1)
+    yaw, pitch, roll = -12, 0, 0
+    R2 = RotationMatrix(yaw=yaw, pitch=pitch, roll=roll)   # Camera 2 orientation (compared to camera 1)
     R1 = np.eye(3)                                # Camera 1 orientation (none! )
     f = 50e-3                                       # Focal Length (m)
     m = 6000/23.5e-3                                # Pixels per unit length
@@ -2921,7 +2929,7 @@ def rel_dist():
     imgcoordx_err = 3                    # Error in measured point in x-direction (pixels)
     imgcoordy_err = 3                    # Error in measured point in y-direction (pixels)
 
-    yaw, pitch, roll = -10, 0, 0
+    
 
     # point1, point2 = np.array([14, 0, 30, 1]), np.array([16, 0, 30, 1])  # separated by KNOWN 2M
     point1, point2 = np.array([14, 0, 30, 1]), np.array([14, 0, 32, 1])  # separated by KNOWN 2M
@@ -3016,12 +3024,22 @@ def rel_dist():
     errors = nnd_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0], xc_err, 
                     centre2[1], yc_err, centre2[2], zc_err, yaw, alpha_err, pitch, beta_err, 
                     roll, gamma_err, imgcoordx_err, imgcoordy_err, np.array([25/2, 0, 100]), 1000,
-                    radius=1)
-
-    print("mean error over many orientations is ", np.mean(errors), "m")
-
+                    radius=.5)
 
     
+    print("mean error over many orientations is ", np.mean(errors), "m\n")
+
+    point = np.array([25/2, 0, 100, 1])
+
+    u1, v1 = homogeneous2Inhomogeneous(p1 @ point)
+    u2, v2 = homogeneous2Inhomogeneous(p2 @ point)
+
+    mean, error = functional_error(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0], xc_err, 
+                    centre2[1], yc_err, centre2[2], zc_err, yaw, alpha_err, pitch, beta_err, 
+                    roll, gamma_err, u1, u2, imgcoordx_err, v1, v2, imgcoordy_err)
+    print("Absolute distance errors:")
+    print(mean, error)
+    print(np.sqrt(np.sum(error**2)))
 
     return None
 
@@ -3170,10 +3188,10 @@ def projective_transform():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
     # test()
     # test2()
     # final()
     # fov()
-    # rel_dist()
-    # projective_transform()
+    rel_dist()
+    # projective_transform()   # demoing how a projective transform looks

@@ -291,11 +291,11 @@ def main():
             counter += 1
     ax.scatter(camera1centre[0], camera1centre[1], camera1centre[2], c="m", label="Camera 1 Centre")
     ax.scatter(camera2centre[0], camera2centre[1], camera2centre[2], c="b", label="Camera 2 Centre")
-    ax.set_title("The 3D Points That Are Observed by Both Cameras")
+    # ax.set_title("The 3D Points That Are Observed by Both Cameras")
     ax.set_xlabel("x ")
     ax.set_ylabel("y ")
     ax.set_zlabel("z ")
-    ax.legend()
+    # ax.legend()
     
     print("Both cameras can see {} out of the total {} points".format(counter, len(points)))
 
@@ -374,6 +374,7 @@ def main():
     ax.set_xlabel("x ")
     ax.set_ylabel("y ")
     ax.set_zlabel("z ")
+    # fig.tight_layout()
     ax.legend()
     # plt.show()
 
