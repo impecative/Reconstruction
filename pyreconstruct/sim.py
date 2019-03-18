@@ -327,9 +327,9 @@ def main():
     plt.plot([0, 0], [h1, 0], "r", alpha=0.3)
 
     ax1.set_aspect("equal")
-    plt.xlabel("x-direction (pixels)")
-    plt.ylabel("y-direction (pixels)")
-    plt.title("Camera 1 Image")
+    plt.xlabel("x-direction (pixels)", fontsize=15)
+    plt.ylabel("y-direction (pixels)", fontsize=15)
+    plt.title("Camera 1 Image", fontsize=15)
     
     ax2 = plt.subplot(122, sharey=ax1)
     plt.setp(ax2.get_yticklabels(), visible=False)
@@ -342,10 +342,11 @@ def main():
     plt.plot([0, 0], [h2, 0], "r", alpha=0.3)
 
     ax2.set_aspect("equal")
-    plt.title("Camera 2 Image")
-    plt.xlabel("x-direction (pixels)")
+    plt.title("Camera 2 Image", fontsize=15)
+    plt.xlabel("x-direction (pixels)", fontsize=15)
 
-    plt.suptitle("Points as Imaged by Two Stereo-Cameras")
+    # plt.suptitle("Points as Imaged by Two Stereo-Cameras")
+    plt.tight_layout()
     # plt.show()
 
     # plot the origin 3D points
