@@ -1669,6 +1669,10 @@ def relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_
     return np.sum(np.sqrt((triangulate(imgpoint1_cam1, imgpoint1_cam2, p1, p2) - 
                   triangulate(imgpoint2_cam1, imgpoint2_cam2, p1, p2))**2))
 
+def rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2):
+    return (triangulate(imgpoint1_cam1, imgpoint1_cam2, p1, p2) - 
+                  triangulate(imgpoint2_cam1, imgpoint2_cam2, p1, p2))
+
 def nnd_err(f, f_err, px, px_err, py, py_err, camera2_x, 
                     camera2_x_err, camera2_y, camera2_y_err, camera2_z, 
                     camera2_z_err, yaw, yaw_err, pitch, pitch_err,
@@ -1775,6 +1779,10 @@ def nnd_err(f, f_err, px, px_err, py, py_err, camera2_x,
                                         imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r 
         v22_errors[i] = alpha_r_v22 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, [imgpoint2_cam2[0], 
                                         imgpoint2_cam2[1]+v_err], p1, p2) - r
+
+
+
+
         errors.append(alpha_r_f1)
         errors.append(alpha_r_f2)
         errors.append(alpha_r_x0_1)
@@ -1828,6 +1836,172 @@ def nnd_err(f, f_err, px, px_err, py, py_err, camera2_x,
 
 
     return total_errors
+
+
+def nnd_xyz_err(f, f_err, px, px_err, py, py_err, camera2_x, 
+                    camera2_x_err, camera2_y, camera2_y_err, camera2_z, 
+                    camera2_z_err, yaw, yaw_err, pitch, pitch_err,
+                    roll, roll_err, u_err, v_err, 
+                    sphere_centre, n_points, radius=1, origin=np.array([0,0,0])):
+    """
+    Find the average error in nearest neighbour distance over all orientations \
+    of two birds
+    """
+    # Generate uniform sphere surrounding specified position with antipodes
+    points, antipoints = position_sphere(sphere_centre, n_points, 
+                                         radius=radius, origin=origin)
+
+    K = np.array([[f, 0, px], [0, f, py], [0,0,1]])  # calibration matrix, same for both cameras
+    R2 = RotationMatrix(yaw, pitch, roll)            # rotation matrix for camera 2
+    R1 = np.eye(3)                                   # rotation matrix for camera 1
+    centre2 = np.array([camera2_x, camera2_y, camera2_z])   # centre of camera 2
+    centre1 = np.zeros((3,1))
+    p1 = K @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]        # camera matrix 1
+    p2 = K @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]   # camera matrix 2
+
+    # define the perturbed camera matrices for functional approach
+    p1f = np.array([[f+f_err, 0, px], [0,f+f_err, py], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
+    p2f = np.array([[f+f_err, 0, px], [0,f+f_err, py], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
+    p1x1 = np.array([[f, 0, px+px_err], [0,f, py], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
+    p2x2 = np.array([[f, 0, px+px_err], [0,f, py], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
+    p1y1 = np.array([[f, 0, px], [0,f, py+py_err], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
+    p2y2 = np.array([[f, 0, px], [0,f, py+py_err], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
+    p2cx = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0] + camera2_x_err], [centre2[1]], [centre2[2]]])]
+    p2cy = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0]], [centre2[1]+camera2_y_err], [centre2[2]]])]
+    p2cz = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0]], [centre2[1]], [centre2[2]+camera2_z_err]])]
+    p2_yaw = K @ RotationMatrix(yaw+yaw_err, pitch, roll) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
+    p2_pitch = K @ RotationMatrix(yaw, pitch+pitch_err, roll) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
+    p2_roll = K @ RotationMatrix(yaw, pitch, roll+roll_err) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
+
+    # now, for every point and antipode, compute the relative distance error
+    # then average over all points
+
+    total_errors = np.zeros((len(points), 3))
+    f1_errors = np.zeros((len(points), 3))
+    f2_errors = np.zeros((len(points), 3))
+    x0_1_errors = np.zeros((len(points), 3))
+    x0_2_errors = np.zeros((len(points), 3))
+    y0_1_errors = np.zeros((len(points), 3))
+    y0_2_errors = np.zeros((len(points), 3))
+    yaw_errors = np.zeros((len(points), 3))
+    pitch_errors = np.zeros((len(points), 3))
+    roll_errors = np.zeros((len(points), 3))
+    xc_errors = np.zeros((len(points), 3))
+    yc_errors = np.zeros((len(points), 3))
+    zc_errors = np.zeros((len(points), 3))
+    u11_errors = np.zeros((len(points), 3))
+    u12_errors = np.zeros((len(points), 3))
+    u21_errors = np.zeros((len(points), 3))
+    u22_errors = np.zeros((len(points), 3))
+    v11_errors = np.zeros((len(points), 3))
+    v12_errors = np.zeros((len(points), 3))
+    v21_errors = np.zeros((len(points), 3))
+    v22_errors = np.zeros((len(points), 3))
+
+    for i in range(len(points)):
+        # sys.stdout("\r"+"{}/{} points evaluated".format(i, len(points)))
+        point, antipoint = np.append(points[i], [1]), np.append(antipoints[i], [1])
+        errors = []     # list to store all error components
+        # project onto images of camera 1 and camera 2
+        imgpoint1_cam1 = homogeneous2Inhomogeneous(p1 @ point)     # point 1 in first camera
+        imgpoint2_cam1 = homogeneous2Inhomogeneous(p1 @ antipoint)     # point 2 in first camera
+        imgpoint1_cam2 = homogeneous2Inhomogeneous(p2 @ point)     # point 1 in second camera
+        imgpoint2_cam2 = homogeneous2Inhomogeneous(p2 @ antipoint)     # point 2 in second camera
+
+        # imgpoint1_cam1 = imgpoint1_cam1[::-1]
+        # imgpoint2_cam1 = imgpoint2_cam1[::-1]
+        # imgpoint1_cam2 = imgpoint1_cam2[::-1]
+        # imgpoint2_cam2 = imgpoint2_cam2[::-1]
+
+        # now work out fractional error for each of these
+        r = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2)
+        # print(rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2cx) - r)
+        f1_errors[i] = alpha_r_f1 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1f, p2) - r
+        f2_errors[i] = alpha_r_f2 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2f) - r
+        x0_1_errors[i] = alpha_r_x0_1 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1x1, p2) - r
+        y0_1_errors[i] = alpha_r_y0_1 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1y1, p2) - r
+        x0_2_errors[i] = alpha_r_x0_2 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2x2) - r
+        y0_2_errors[i] = alpha_r_y0_2 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2y2) - r
+        yaw_errors[i] = alpha_r_yaw = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2_yaw) - r
+        pitch_errors[i] = alpha_r_pitch = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2_pitch) - r
+        roll_errors[i] = alpha_r_roll = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2_roll) - r
+        xc_errors[i] = alpha_r_xc = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2cx) - r
+        yc_errors[i] = alpha_r_yc = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2cy) - r
+        zc_errors[i] = alpha_r_zc = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2cz) - r
+        u11_errors[i] = alpha_r_u11 = rel_distance_nnd([imgpoint1_cam1[0]+u_err, imgpoint1_cam1[1]], imgpoint1_cam2, 
+                                        imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r 
+        u12_errors[i] = alpha_r_u12 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, [imgpoint2_cam1[0]+u_err, 
+                                    imgpoint2_cam1[1]], imgpoint2_cam2, p1, p2) - r
+        u21_errors[i] = alpha_r_u21 = rel_distance_nnd(imgpoint1_cam1, [imgpoint1_cam2[0]+u_err, imgpoint1_cam2[1]], 
+                                        imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r
+        u22_errors[i] = alpha_r_u22 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, [imgpoint2_cam2[0] + u_err, 
+                                        imgpoint2_cam2[1]], p1, p2) - r
+        v11_errors[i] = alpha_r_v11 = rel_distance_nnd([imgpoint1_cam1[0], imgpoint1_cam1[1]+v_err], imgpoint1_cam2, 
+                                    imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r
+        v12_errors[i] = alpha_r_v12 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, [imgpoint2_cam1[0], 
+                                    imgpoint2_cam1[1]+v_err], imgpoint2_cam2, p1, p2) - r
+        v21_errors[i] = alpha_r_v21 = rel_distance_nnd(imgpoint1_cam1, [imgpoint1_cam2[0], imgpoint1_cam2[1]+v_err], 
+                                        imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r 
+        v22_errors[i] = alpha_r_v22 = rel_distance_nnd(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, [imgpoint2_cam2[0], 
+                                        imgpoint2_cam2[1]+v_err], p1, p2) - r
+
+
+
+        errors.append(alpha_r_f1)
+        errors.append(alpha_r_f2)
+        errors.append(alpha_r_x0_1)
+        errors.append(alpha_r_y0_1)
+        errors.append(alpha_r_x0_2)
+        errors.append(alpha_r_y0_2)
+        errors.append(alpha_r_yaw)
+        errors.append(alpha_r_pitch)
+        errors.append(alpha_r_roll)
+        errors.append(alpha_r_xc)
+        errors.append(alpha_r_yc)
+        errors.append(alpha_r_zc)
+        errors.append(alpha_r_u11)# image of point 1 x-coord in camera 1
+        errors.append(alpha_r_v11) # image of point 1 y-coord in camera 1                      
+        errors.append(alpha_r_u12)  # image of point 2 x-coord in camera 1
+        errors.append(alpha_r_v12) # image of point 2 y-coord in camera 1                         
+        errors.append(alpha_r_u21) # image of point 1 x-coord in camera 2
+        errors.append(alpha_r_v21)# image of point 1 y-coord in camera 2
+        errors.append(alpha_r_u22) # image of point 2 x-coord in camera 2
+        errors.append(alpha_r_v22) # image of point 2 y-coord in v
+
+        errors = np.asarray(errors)
+        total_errors[i] = np.sqrt(np.sum(errors**2, axis=0))
+
+        # print(total_errors[i])
+
+    # print("maximal error for some orientation of two points is ", np.max(total_errors), "m")
+    # print("minimal error for some orientation of two points is ", np.min(total_errors), "m")
+
+
+    # print("Mean f1 error is {:.2g} m on relative distance".format(np.mean(f1_errors)))
+    # print("Mean f2 error is {:.2g} m on relative distance".format(np.mean(f2_errors)))
+    # print("Mean x0_1 error is {:.2g} m on relative distance".format(np.mean(x0_1_errors)))
+    # print("Mean x0_2 error is {:.2g} m on relative distance".format(np.mean(x0_2_errors)))
+    # print("Mean y0_1 error is {:.2g} m on relative distance".format(np.mean(y0_1_errors)))
+    # print("Mean y0_2 error is {:.2g} m on relative distance".format(np.mean(y0_2_errors)))
+    # print("Mean yaw error is {:.2g} m on relative distance".format(np.mean(yaw_errors)))
+    # print("Mean pitch error is {:.2g} m on relative distance".format(np.mean(pitch_errors)))
+    # print("Mean roll error is {:.2g} m on relative distance".format(np.mean(roll_errors)))
+    # print("Mean xc error is {:.2g} m on relative distance".format(np.mean(xc_errors)))
+    # print("Mean yc error is {:.2g} m on relative distance".format(np.mean(yc_errors)))
+    # print("Mean zc error is {:.2g} m on relative distance".format(np.mean(zc_errors)))
+    # print("Mean u11 error is {:.2g} m on relative distance".format(np.mean(u11_errors)))
+    # print("Mean u12 error is {:.2g} m on relative distance".format(np.mean(u12_errors)))
+    # print("Mean u21 error is {:.2g} m on relative distance".format(np.mean(u21_errors)))
+    # print("Mean u22 error is {:.2g} m on relative distance".format(np.mean(u22_errors)))
+    # print("Mean v11 error is {:.2g} m on relative distance".format(np.mean(v11_errors)))
+    # print("Mean v12 error is {:.2g} m on relative distance".format(np.mean(v12_errors)))
+    # print("Mean v21 error is {:.2g} m on relative distance".format(np.mean(v21_errors)))
+    # print("Mean v22 error is {:.2g} m on relative distance".format(np.mean(v22_errors)))
+
+    # print(total_errors)
+
+    # print(np.mean(total_errors, axis=0))
+    return np.mean(total_errors, axis=0)
 
 class Camera:
     """
@@ -2551,10 +2725,11 @@ def final():
     # Then use DLT to fix projective ambiguity. 
 
     centre1 = np.array([[0,0,0]])   # Camera 1 centre (origin)
-    centre2 = np.array([[50,0,0]])  # Camera 2 centre
-    R2 = RotationMatrix(yaw=-10, pitch=0, roll=0)   # Camera 2 orientation (compared to camera 1)
+    centre2 = np.array([[25,0,0]])  # Camera 2 centre
+    yaw, pitch, roll = -12.6, 0, 0
+    R2 = RotationMatrix(yaw=yaw, pitch=pitch, roll=roll) # Camera 2 orientation (compared to camera 1)
     R1 = RotationMatrix(0,0,0)                      # Camera 1 orientation (none! )
-    f = 50e-3                                       # Focal Length (m)
+    f = 35e-3                                       # Focal Length (m)
     m = 6000/23.5e-3                                # Pixels per unit length
     alpha = f*m                                     # Focal length in pixels   
     p_x, p_y = 3000, 2000                           # Centre pixels. (Prinicpal point)
@@ -2624,152 +2799,102 @@ def final():
     # How to turn these, and any uncertainties into uncertainty?? 
     # How to do covariance matrix?
 
-    f_error = 5e-3*m
+    f_error = 1e-3*m
     x_error = 1
     y_error = 1
     alpha_err = np.rad2deg(0.0004)          # Error in yaw angle (from STARFLAG)
-    beta_err  = np.rad2deg(0.0004)#np.rad2deg(0.02)            # Error in pitch angle (from STARFLAG)
+    beta_err  = np.rad2deg(0.02)#np.rad2deg(0.02)            # Error in pitch angle (from STARFLAG)
     gamma_err = np.rad2deg(0.0004)          # Error in roll angle (from STARFLAG)
 
-    f1_err = f2_err = f_err = f_error       # define as all equal for sake of simulation
+    f_err = f_error                         # define as all equal for sake of simulation
     x1_err = x2_err = x_error               # principal point x error
     y1_err = y2_err = y_error               # principal point y error
     xc_err = yc_err = zc_err = 0.01         # error in camera 2 centre coordinates ~(1 cm)
     imgcoordx_err = 3                       # Error in measured point in x-direction (pixels)
     imgcoordy_err = 3                       # Error in measured point in y-direction (pixels)
 
-    yaw, pitch, roll = -10, 0, 0
+    mean, total_err = functional_error(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, roll, gamma_err, imgpoint1[0], imgpoint2[0], imgcoordx_err, imgpoint1[1], imgpoint2[1], imgcoordy_err)
 
-    # K[0,0] = f = K[1,1]
-    # K[0,2] = p_x
-    # K[1,2] = p_y
-    # centre2 = np.array([[20,0,0]])
-    # R2 = RotationMatrix(yaw=0, pitch=-10, roll=0) 
-    # P = K @ R @ np.c_[np.eye(3), -centre.reshape(3,1)]
-
-    p1f = np.array([[alpha+f_err, 0, p_x], [0,alpha+f_err, p_y], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
-    p2f = np.array([[alpha+f_err, 0, p_x], [0,alpha+f_err, p_y], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p1x1 = np.array([[alpha, 0, p_x+x1_err], [0,alpha, p_y], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
-    p2x2 = np.array([[alpha, 0, p_x+x2_err], [0,alpha, p_y], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p1y1 = np.array([[alpha, 0, p_x], [0,alpha, p_y+y1_err], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
-    p2y2 = np.array([[alpha, 0, p_x], [0,alpha, p_y+y2_err], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p2cx = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0][0] + xc_err], [centre2[0][1]], [centre2[0][2]]])]
-    p2cy = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0][0]], [centre2[0][1]+yc_err], [centre2[0][2]]])]
-    p2cz = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0][0]], [centre2[0][1]], [centre2[0][2]+zc_err]])]
-    p2_yaw = K @ RotationMatrix(yaw+alpha_err, pitch, roll) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p2_pitch = K @ RotationMatrix(yaw, pitch+beta_err, roll) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p2_roll = K @ RotationMatrix(yaw, pitch, roll+gamma_err) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-
-
-    alpha_f1 = np.asarray(triangulate(imgpoint1, imgpoint2, p1f, p2) ) - mean_X
-    alpha_y1 = np.asarray(triangulate(imgpoint1, imgpoint2, p1y1, p2) ) - mean_X
-    alpha_f2 = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2f) ) - mean_X
-    alpha_x1 = np.asarray(triangulate(imgpoint1, imgpoint2, p1x1, p2) ) - mean_X
-    alpha_x2 = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2x2) ) - mean_X
-    alpha_y2 = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2y2) ) - mean_X
-    alpha_xc = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2cx)  ) - mean_X
-    alpha_yc = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2cy) ) - mean_X
-    alpha_zc = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2cz) ) - mean_X
-    alpha_alpha = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2_yaw)) - mean_X
-    alpha_beta = np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2_pitch) ) - mean_X
-    alpha_gamma= np.asarray(triangulate(imgpoint1, imgpoint2, p1, p2_roll) ) - mean_X
-    alpha_img1x = np.asarray(triangulate([imgpoint1[0]+imgcoordx_err, imgpoint1[1]], imgpoint2, p1, p2) ) - mean_X
-    alpha_img1y = np.asarray(triangulate([imgpoint1[0], imgpoint1[1]+imgcoordy_err], imgpoint2, p1, p2) ) - mean_X
-    alpha_img2x = np.asarray(triangulate(imgpoint1, [imgpoint2[0]+imgcoordx_err, imgpoint2[1]], p1, p2) ) - mean_X
-    alpha_img2y = np.asarray(triangulate(imgpoint1, [imgpoint2[0], imgpoint2[1]+imgcoordy_err], p1, p2) ) - mean_X
-
-    total_err = np.sqrt(alpha_f1**2 + alpha_f2**2 + alpha_x1**2 + alpha_x2**2 + alpha_y1**2 + alpha_y2**2 +  
-                alpha_xc**2 + alpha_yc**2 + alpha_zc**2 + alpha_alpha**2 + alpha_beta**2 + alpha_gamma**2 +
-                alpha_img1x**2 + alpha_img1y**2 + alpha_img2x**2 + alpha_img2y**2)
-    print(mean_X, " +- ", total_err)
-
-    # print(triangulated_point)
-    print("error from f1 ", alpha_f1)
-    print('error from py_1 ', alpha_y1)
-    print('error from f2', alpha_f2)
-    print('error from px_1 ', alpha_x1)
-    print('error from px_2 ', alpha_x2)
-    print('error from py_2 ', alpha_y2)
-    print('error from camera x', alpha_xc)
-    print('error from camera y ', alpha_yc)
-    print('error from camera z ', alpha_zc)
-    print('error from yaw ', alpha_alpha)
-    print('error from pitch ', alpha_beta)
-    print('error from roll ', alpha_gamma)
-    print('error from u1 ', alpha_img1x)
-    print('error from v1 ', alpha_img1y)
-    print('error from u2 ', alpha_img2x)
-    print('error from v2 ', alpha_img2y)
-
-    functional_error(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, roll, gamma_err, imgpoint1[0], imgpoint2[0], imgcoordx_err, imgpoint1[1], imgpoint2[1], imgcoordy_err)
+    # print("Same as above?")
+    print("Reconstruction error = ", mean, "+-", total_err)
     
-    vary_coordz = np.linspace(10, 110, 30)
-    vary_coordxy = np.linspace(-50, 70, len(vary_coordz))
+    vary_coordz = np.linspace(10, 110, 50)
+    vary_coordxy = np.linspace(-50, 12.5+72.5, len(vary_coordz))
     errorsz = np.zeros((len(vary_coordz), 3))
     errorsx = np.zeros(errorsz.shape)
     errorsy = np.zeros(errorsz.shape)
 
     for i in range(len(vary_coordz)):
         print("{}/{} complete...".format(i+1, len(vary_coordz)), flush=True)
-        errorsz[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
+        errorsz[i] = nnd_xyz_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
                                         centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
                                         roll, gamma_err, imgcoordx_err, imgcoordy_err, 
-                                        np.array([10, 0, vary_coordz[i]]), 1000)
-        errorsx[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
+                                        np.array([centre2[0][0]/2, 0, vary_coordz[i]]), 1000)
+        errorsx[i] = nnd_xyz_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
                                         centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
                                         roll, gamma_err, imgcoordx_err, imgcoordy_err, 
-                                        np.array([vary_coordxy[i], 0, 25]), 1000)
-        errorsy[i] = nearest_neighbour_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
+                                        np.array([vary_coordxy[i], 0, 100]), 1000)
+        errorsy[i] = nnd_xyz_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0][0], xc_err, 
                                         centre2[0][1], yc_err, centre2[0][2], zc_err, yaw, alpha_err, pitch, beta_err, 
                                         roll, gamma_err, imgcoordx_err, imgcoordy_err, 
-                                        np.array([0, vary_coordxy[i], 25]), 1000)
+                                        np.array([centre2[0][0]/2, vary_coordxy[i], 100]), 1000)
 
     # print(errors)
 
     # plot graph of the error in the mean error in each coordinate with depth z
     fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
+    axs[2].tick_params(axis = 'both', which = 'major', labelsize = 14)
+    axs[1].tick_params(axis = 'both', which = 'major', labelsize = 14)  
+    axs[0].tick_params(axis = 'both', which = 'major', labelsize = 14)
     axs[2].plot(vary_coordz, errorsz[:,0], "bx", ms=4)
     axs[1].plot(vary_coordz, errorsz[:,1], "bx", ms=4)
     axs[0].plot(vary_coordz, errorsz[:,2], "bx", ms=4)
 
-    axs[2].set_ylabel("x-error (m)")
-    axs[1].set_ylabel("y-error (m)")
-    axs[0].set_ylabel("z-error (m)")
+    axs[2].set_ylabel(r"$x$-error (m)", fontsize=15)
+    axs[1].set_ylabel(r"$y$-error (m)", fontsize=15)
+    axs[0].set_ylabel(r"$z$-error (m)", fontsize=15)
 
-    axs[2].set_xlabel("depth (m)")
+    axs[2].set_xlabel(r"$z$-position (m)", fontsize=15)
+    # fig.suptitle("Mean coordinate error over many orientations at varying depth z")
     fig.tight_layout()
 
-    plt.suptitle("Mean coordinate error over many orientations at varying depth z")
+    
 
     # plot error with varying x-coord
     fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
+    axs[2].tick_params(axis = 'both', which = 'major', labelsize = 14)
+    axs[1].tick_params(axis = 'both', which = 'major', labelsize = 14)  
+    axs[0].tick_params(axis = 'both', which = 'major', labelsize = 14)
     axs[2].plot(vary_coordxy, errorsx[:,0], "bx", ms=4)
     axs[1].plot(vary_coordxy, errorsx[:,1], "bx", ms=4)
     axs[0].plot(vary_coordxy, errorsx[:,2], "bx", ms=4)
 
-    axs[2].set_ylabel("x-error (m)")
-    axs[1].set_ylabel("y-error (m)")
-    axs[0].set_ylabel("z-error (m)")
+    axs[2].set_ylabel(r"$x$-error (m)", fontsize=15)
+    axs[1].set_ylabel(r"$y$-error (m)", fontsize=15)
+    axs[0].set_ylabel(r"$z$-error (m)", fontsize=15)
 
-    axs[2].set_xlabel("x-position (m)")
-
+    axs[2].set_xlabel(r"$x$-position (m)", fontsize=15)
+    # fig.suptitle("Mean coordinate error over many orientations at varying x-position")
     fig.tight_layout()
 
-    plt.suptitle("Mean coordinate error over many orientations at varying x-position")
+    
 
     # plot error with varying y-coord
     fig, axs = plt.subplots(3, 1, sharex=True, sharey=True)
+    axs[2].tick_params(axis = 'both', which = 'major', labelsize = 14)
+    axs[1].tick_params(axis = 'both', which = 'major', labelsize = 14)  
+    axs[0].tick_params(axis = 'both', which = 'major', labelsize = 14)
     axs[2].plot(vary_coordxy, errorsy[:,0], "bx", ms=4)
     axs[1].plot(vary_coordxy, errorsy[:,1], "bx", ms=4)
     axs[0].plot(vary_coordxy, errorsy[:,2], "bx", ms=4)
 
-    axs[2].set_ylabel("x-error (m)")
-    axs[1].set_ylabel("y-error (m)")
-    axs[0].set_ylabel("z-error (m)")
+    axs[2].set_ylabel(r"$x$-error (m)", fontsize=15)
+    axs[1].set_ylabel(r"$y$-error (m)", fontsize=15)
+    axs[0].set_ylabel(r"$z$-error (m)", fontsize=15)
 
-    axs[2].set_xlabel("y-position (m)")
+    axs[2].set_xlabel(r"$y$-position (m)", fontsize=15)
 
-    plt.suptitle("Mean coordinate error over many orientations at varying y-position")
+    # fig.suptitle("Mean coordinate error over many orientations at varying y-position")
     fig.tight_layout()
     plt.show()
 
@@ -2796,8 +2921,8 @@ def final():
 
 def fov():
     centre1 = np.array([0,0,0])   # Camera 1 centre (origin)
-    centre2 = np.array([50,0,0])  # Camera 2 centre
-    yaw, pitch, roll = 0, 0, 0
+    centre2 = np.array([25,0,0])  # Camera 2 centre
+    yaw, pitch, roll = -12.6, 0, 0
     R2 = RotationMatrix(yaw=yaw, pitch=pitch, roll=roll)   # Camera 2 orientation (compared to camera 1)
     R1 = RotationMatrix(0,0,0)                      # Camera 1 orientation (none! )
     f = 50e-3                                       # Focal Length (m)
@@ -2816,9 +2941,9 @@ def fov():
     f_error = 1e-3*m
     x_error = 1
     y_error = 1
-    alpha_err = 0.1#np.rad2deg(0.0004)         # Error in yaw angle (from STARFLAG)
-    beta_err  = .1#np.rad2deg(0.02)            # Error in pitch angle (from STARFLAG)
-    gamma_err = .1#np.rad2deg(0.0004)          # Error in roll angle (from STARFLAG)
+    alpha_err = np.rad2deg(0.0004)         # Error in yaw angle (from STARFLAG)
+    beta_err  = np.rad2deg(0.02)            # Error in pitch angle (from STARFLAG)
+    gamma_err = np.rad2deg(0.0004)          # Error in roll angle (from STARFLAG)
 
     f1_err = f2_err = f_err = f_error       # define as all equal for sake of simulation
     x1_err = x2_err = x_error               # principal point x error
@@ -2899,7 +3024,7 @@ def rel_dist():
 
     centre1 = np.array([0,0,0])   # Camera 1 centre (origin)
     centre2 = np.array([25,0,0])  # Camera 2 centre
-    yaw, pitch, roll = -12, 0, 0
+    yaw, pitch, roll = -12.6, 0, 0
     R2 = RotationMatrix(yaw=yaw, pitch=pitch, roll=roll)   # Camera 2 orientation (compared to camera 1)
     R1 = np.eye(3)                                # Camera 1 orientation (none! )
     f = 50e-3                                       # Focal Length (m)
@@ -2919,7 +3044,7 @@ def rel_dist():
     x_error = 1
     y_error = 1
     alpha_err = np.rad2deg(0.0004)          # Error in yaw angle (from STARFLAG)
-    beta_err  = np.rad2deg(0.02)#np.rad2deg(0.02)            # Error in pitch angle (from STARFLAG)
+    beta_err  = np.rad2deg(0.02)            # Error in pitch angle (from STARFLAG)
     gamma_err = np.rad2deg(0.0004)          # Error in roll angle (from STARFLAG)
 
     f1_err = f2_err = f_err = f_error       # define as all equal for sake of simulation
@@ -3025,10 +3150,9 @@ def rel_dist():
                     centre2[1], yc_err, centre2[2], zc_err, yaw, alpha_err, pitch, beta_err, 
                     roll, gamma_err, imgcoordx_err, imgcoordy_err, np.array([25/2, 0, 100]), 1000,
                     radius=.5)
-
     
     print("mean error over many orientations is ", np.mean(errors), "m\n")
-
+    # print("Total error is : (same as above?) ", total_error)
     point = np.array([25/2, 0, 100, 1])
 
     u1, v1 = homogeneous2Inhomogeneous(p1 @ point)
@@ -3037,6 +3161,7 @@ def rel_dist():
     mean, error = functional_error(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0], xc_err, 
                     centre2[1], yc_err, centre2[2], zc_err, yaw, alpha_err, pitch, beta_err, 
                     roll, gamma_err, u1, u2, imgcoordx_err, v1, v2, imgcoordy_err)
+
     print("Absolute distance errors:")
     print(mean, error)
     print(np.sqrt(np.sum(error**2)))
