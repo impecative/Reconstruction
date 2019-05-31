@@ -1589,6 +1589,23 @@ def functional_error(f, f_err, px, px_err, py, py_err, camera2_x,
                 alpha_img1x**2 + alpha_img1y**2 + alpha_img2x**2 + alpha_img2y**2)
     # print(mean_X, " +- ", total_err)
 
+    print("f1 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_f1**2))))
+    print("f2 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_f2**2))))
+    print("x0_1 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_x1**2))))
+    print("x0_2 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_x2**2))))
+    print("y0_1 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_y1**2))))
+    print("y0_2 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_y2**2))))
+    print("yaw error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_alpha**2))))
+    print("pitch error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_beta**2))))
+    print("roll error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_gamma**2))))
+    print("xc error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_xc**2))))
+    print("yc error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_yc**2))))
+    print("zc error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_zc**2))))
+    print("u1 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_img1x**2))))
+    print("v1 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_img1y**2))))
+    print("u2 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_img2x**2))))
+    print("v2 error is {} m on absolute distance".format(np.sqrt(np.sum(alpha_img2y**2))))
+
     return mean_X, total_err
 
 def nearest_neighbour_err(f, f_err, px, px_err, py, py_err, camera2_x, 
@@ -2734,8 +2751,8 @@ def final():
     alpha = f*m                                     # Focal length in pixels   
     p_x, p_y = 3000, 2000                           # Centre pixels. (Prinicpal point)
     f_error = 1e-3*m                                # Focal length uncertainty (pixels)
-    x_error = 5                                     # Uncertainty in position of principal point
-    y_error = 5                                     # Uncertainty in position of principal point
+    x_error = 3                                     # Uncertainty in position of principal point
+    y_error = 3                                     # Uncertainty in position of principal point
 
     K = np.array([[alpha, 0, p_x], [0, alpha, p_y], [0,0,1]])   # Calibration matrix (same for both cameras...)
 
@@ -2955,7 +2972,7 @@ def fov():
     
 
     # vary x,y over all combinations of coordinates for -50 to 50.
-    vals = np.linspace(-50, 70, 121)
+    vals = np.linspace(-100, 112.5, 250)
 
     xs = np.zeros(len(vals)**2)
     ys = np.zeros(len(vals)**2)
@@ -2971,7 +2988,7 @@ def fov():
     total_err = np.zeros(xs.shape)
     xyz_errs = np.zeros((len(xs), 3))
     for i, (x, y) in enumerate(zip(xs, ys)):
-        point = np.array([x,y,50,1])
+        point = np.array([x,y,100,1])
         img1coord = homogeneous2Inhomogeneous(p1 @ point)
         img2coord = homogeneous2Inhomogeneous(p2 @ point)
 
@@ -3028,19 +3045,18 @@ def rel_dist():
     R2 = RotationMatrix(yaw=yaw, pitch=pitch, roll=roll)   # Camera 2 orientation (compared to camera 1)
     R1 = np.eye(3)                                # Camera 1 orientation (none! )
     f = 50e-3                                       # Focal Length (m)
+    # f = 6e-3    # iPhone 6
     m = 6000/23.5e-3                                # Pixels per unit length
+    # m = 1.22e-6 # iPhone 6
     alpha = f*m                                     # Focal length in pixels   
     p_x, p_y = 3000, 2000                           # Centre pixels. (Prinicpal point)
-    f_error = 1e-3*m                                # Focal length uncertainty (pixels)
-    x_error = 5                                     # Uncertainty in position of principal point
-    y_error = 5                                     # Uncertainty in position of principal point
-
+    # p_x, p_y = 1920/2, 1080/2 # iPhone 6
     K = np.array([[alpha, 0, p_x], [0, alpha, p_y], [0,0,1]])   # Calibration matrix (same for both cameras...)
 
     p1 = K @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]       # Camera matrix 1
     p2 = K @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]       # Camera matrix 2
 
-    f_error = 1e-3*m
+    f_error = 1/50 * f * m#1e-3*m
     x_error = 1
     y_error = 1
     alpha_err = np.rad2deg(0.0004)          # Error in yaw angle (from STARFLAG)
@@ -3054,117 +3070,31 @@ def rel_dist():
     imgcoordx_err = 3                    # Error in measured point in x-direction (pixels)
     imgcoordy_err = 3                    # Error in measured point in y-direction (pixels)
 
-    
-
-    # point1, point2 = np.array([14, 0, 30, 1]), np.array([16, 0, 30, 1])  # separated by KNOWN 2M
-    point1, point2 = np.array([14, 0, 30, 1]), np.array([14, 0, 32, 1])  # separated by KNOWN 2M
-
-    imgpoint1_cam1 = homogeneous2Inhomogeneous(p1 @ point1)     # point 1 in first camera
-    imgpoint2_cam1 = homogeneous2Inhomogeneous(p1 @ point2)     # point 2 in first camera
-    imgpoint1_cam2 = homogeneous2Inhomogeneous(p2 @ point1)     # point 1 in second camera
-    imgpoint2_cam2 = homogeneous2Inhomogeneous(p2 @ point2)     # point 2 in second camera
-
-    p1f = np.array([[alpha+f_err, 0, p_x], [0,alpha+f_err, p_y], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
-    p2f = np.array([[alpha+f_err, 0, p_x], [0,alpha+f_err, p_y], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p1x1 = np.array([[alpha, 0, p_x+x1_err], [0,alpha, p_y], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
-    p2x2 = np.array([[alpha, 0, p_x+x2_err], [0,alpha, p_y], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p1y1 = np.array([[alpha, 0, p_x], [0,alpha, p_y+y1_err], [0,0,1]]) @ R1 @ np.c_[np.eye(3), -centre1.reshape(3,1)]
-    p2y2 = np.array([[alpha, 0, p_x], [0,alpha, p_y+y2_err], [0,0,1]]) @ R2 @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p2cx = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0] + xc_err], [centre2[1]], [centre2[2]]])]
-    p2cy = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0]], [centre2[1]+yc_err], [centre2[2]]])]
-    p2cz = K @ R2 @ np.c_[np.eye(3), -np.array([[centre2[0]], [centre2[1]], [centre2[2]+zc_err]])]
-    p2_yaw = K @ RotationMatrix(yaw+alpha_err, pitch, roll) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p2_pitch = K @ RotationMatrix(yaw, pitch+beta_err, roll) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-    p2_roll = K @ RotationMatrix(yaw, pitch, roll+gamma_err) @ np.c_[np.eye(3), -centre2.reshape(3,1)]
-
-    # relative distance (mean)
-    r = np.sum(np.sqrt((triangulate(imgpoint1_cam1, imgpoint1_cam2, p1, p2) - triangulate(imgpoint2_cam1, imgpoint2_cam2, p1, p2))**2))
-
-    alpha_r_f1 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1f, p2) - r
-    alpha_r_f2 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2f) - r
-    alpha_r_x0_1 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1x1, p2) - r
-    alpha_r_y0_1 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1y1, p2) - r
-    alpha_r_x0_2 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2x2) - r
-    alpha_r_y0_2 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2y2) - r
-    alpha_r_yaw = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2_yaw) - r
-    alpha_r_pitch = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2_pitch) - r
-    alpha_r_roll = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2_roll) - r
-    alpha_r_xc = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2cx) - r
-    alpha_r_yc = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2cy) - r
-    alpha_r_zc = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, imgpoint2_cam2, p1, p2cz) - r
-
-    # vary image measurements independently in both cameras...
-    alpha_r_u11 = relative_distance([imgpoint1_cam1[0]+imgcoordx_err, imgpoint1_cam1[1]], imgpoint1_cam2, 
-                                    imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r # image of point 1 x-coord in camera 1
-
-    alpha_r_v11 = relative_distance([imgpoint1_cam1[0], imgpoint1_cam1[1]+imgcoordy_err], imgpoint1_cam2, 
-                                    imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r # image of point 1 y-coord in camera 1                      
-    alpha_r_u12 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, [imgpoint2_cam1[0]+imgcoordx_err, 
-                                   imgpoint2_cam1[1]], imgpoint2_cam2, p1, p2) - r  # image of point 2 x-coord in camera 1
-
-    alpha_r_v12 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, [imgpoint2_cam1[0], 
-                                   imgpoint2_cam1[1]+imgcoordy_err], imgpoint2_cam2, p1, p2) - r # image of point 2 y-coord in camera 1
-                                   
-    alpha_r_u21 = relative_distance(imgpoint1_cam1, [imgpoint1_cam2[0]+imgcoordx_err, imgpoint1_cam2[1]], 
-                                    imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r # image of point 1 x-coord in camera 2
-
-    alpha_r_v21 = relative_distance(imgpoint1_cam1, [imgpoint1_cam2[0], imgpoint1_cam2[1]+imgcoordy_err], 
-                                    imgpoint2_cam1, imgpoint2_cam2, p1, p2) - r # image of point 1 y-coord in camera 2
-
-    alpha_r_u22 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, [imgpoint2_cam2[0] + imgcoordx_err, 
-                                    imgpoint2_cam2[1]], p1, p2) - r # image of point 2 x-coord in camera 2
-
-    alpha_r_v22 = relative_distance(imgpoint1_cam1, imgpoint1_cam2, imgpoint2_cam1, [imgpoint2_cam2[0], 
-                                    imgpoint2_cam2[1]+imgcoordy_err], p1, p2) - r # image of point 2 y-coord in camera 2
-
-    total_error = np.sqrt(alpha_r_f1**2 + alpha_r_f2**2 + alpha_r_x0_1**2 + alpha_r_y0_1**2 + alpha_r_x0_2**2 + 
-                          alpha_r_y0_2**2 + alpha_r_yaw**2 + alpha_r_pitch**2 + alpha_r_roll**2 + alpha_r_xc**2 + 
-                          alpha_r_yc**2 + alpha_r_zc**2 + alpha_r_u11**2 + alpha_r_v11**2 + alpha_r_u12**2 + 
-                          alpha_r_v12**2 + alpha_r_u21**2 + alpha_r_v21**2 + alpha_r_u22**2 + alpha_r_v22**2)
-
-    # print("Error in relative distance due to f1 is ", alpha_r_f1)
-    # print("Error in relative distance due to f2 is ", alpha_r_f2)
-    # print("Error in relative distance due to x0_1 is ", alpha_r_x0_1)
-    # print("Error in relative distance due to y0_1 is ", alpha_r_y0_1)
-    # print("Error in relative distance due to x0_2 is ", alpha_r_x0_2)
-    # print("Error in relative distance due to y0_2 is ", alpha_r_y0_2)
-    # print("Error in relative distance due to yaw is ", alpha_r_yaw)
-    # print("Error in relative distance due to pitch is ", alpha_r_pitch)
-    # print("Error in relative distance due to roll is ", alpha_r_roll)
-    # print("Error in relative distance due to camera 2 x coord is ", alpha_r_xc)
-    # print("Error in relative distance due to camera 2 y coord is ", alpha_r_yc)
-    # print("Error in relative distance due to camera 2 z coord is ", alpha_r_zc)
-    # print("\nThe following are the errors for the measurement of of uij or vij for x or y coordinate in camera i of point j")
-    # print("Error in relative distance due to u11 is ", alpha_r_u11)
-    # print("Error in relative distance due to v11 is ", alpha_r_v11)
-    # print("Error in relative distance due to u12 is ", alpha_r_u12)
-    # print("Error in relative distance due to v12 is ", alpha_r_v12)
-    # print("Error in relative distance due to u21 is ", alpha_r_u21)
-    # print("Error in relative distance due to v21 is ", alpha_r_v21)
-    # print("Error in relative distance due to u22 is ", alpha_r_u22)
-    # print("Error in relative distance due to v22 is ", alpha_r_v22)
-
-    # print("Total error in the relative distance between points is ", total_error, "m")
 
     errors = nnd_err(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0], xc_err, 
                     centre2[1], yc_err, centre2[2], zc_err, yaw, alpha_err, pitch, beta_err, 
-                    roll, gamma_err, imgcoordx_err, imgcoordy_err, np.array([25/2, 0, 100]), 1000,
+                    roll, gamma_err, imgcoordx_err, imgcoordy_err, np.array([centre2[0]/2, 0, 100]), 1000,
                     radius=.5)
     
     print("mean error over many orientations is ", np.mean(errors), "m\n")
     # print("Total error is : (same as above?) ", total_error)
-    point = np.array([25/2, 0, 100, 1])
+    point = np.array([centre2[0]/2, 0, 100])
+    # vec_cam1 = point
+    # vec_cam2 = point-centre2
+    # tot_distance = np.linalg.norm(vec_cam1) + np.linalg.norm(vec_cam2)
+    # print("Total distance from point to cameras is ", tot_distance, " m")
 
-    u1, v1 = homogeneous2Inhomogeneous(p1 @ point)
-    u2, v2 = homogeneous2Inhomogeneous(p2 @ point)
+
+    u1, v1 = homogeneous2Inhomogeneous(p1 @ np.append(point, [1]))
+    u2, v2 = homogeneous2Inhomogeneous(p2 @ np.append(point, [1]))
 
     mean, error = functional_error(alpha, f_err, p_x, x_error, p_y, y_error, centre2[0], xc_err, 
                     centre2[1], yc_err, centre2[2], zc_err, yaw, alpha_err, pitch, beta_err, 
                     roll, gamma_err, u1, u2, imgcoordx_err, v1, v2, imgcoordy_err)
 
     print("Absolute distance errors:")
-    print(mean, error)
-    print(np.sqrt(np.sum(error**2)))
+    print(mean, "+-", error)
+    print("= {} m".format(np.sqrt(np.sum(error**2))))
 
     return None
 
